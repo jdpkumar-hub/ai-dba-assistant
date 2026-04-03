@@ -30,13 +30,27 @@ with col2:
 # 📝 User input
 user_input = st.text_area("Enter your query or issue:")
 
+# 📂 Upload SQL file (ADD HERE)
+uploaded_file = st.file_uploader("Upload SQL file", type=["sql", "txt"])
+
+file_content = ""
+
+if uploaded_file is not None:
+    file_content = uploaded_file.read().decode("utf-8")
+    st.subheader("📄 File Content")
+    st.code(file_content, language="sql")
+
 # ▶️ Run SQL on DB (disabled in cloud)
 if st.button("Run SQL on DB"):
     st.info("⚠️ Database feature works only in local environment")
 
 # 🤖 Analyze with AI
 if st.button("Analyze"):
-    if user_input:
+
+    # 👉 Use file if uploaded, else text input
+    input_data = file_content if file_content else user_input
+
+    if input_data:
         if task == "Query Optimization":
             prompt = f"""
             You are an expert Oracle DBA.
@@ -48,14 +62,14 @@ if st.button("Analyze"):
             3. Index suggestions
 
             SQL:
-            {user_input}
+            {input_data}
             """
         else:
             prompt = f"""
             You are an expert Oracle DBA.
 
             Task: {task}
-            User Input: {user_input}
+            User Input: {input_data}
 
             Provide clear and practical solution.
             """
@@ -69,14 +83,15 @@ if st.button("Analyze"):
 
                 ai_reply = response.choices[0].message.content
 
-                st.session_state.history.append(("User", user_input))
+                # 💾 Save history
+                st.session_state.history.append(("User", input_data))
                 st.session_state.history.append(("AI", ai_reply))
 
         except Exception as e:
             st.error("⚠️ API Error")
             st.write(str(e))
     else:
-        st.warning("Please enter input")
+        st.warning("Please enter input or upload file")
 
 # 🧹 Clear history
 if st.button("Clear History"):
