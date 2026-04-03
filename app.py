@@ -1,22 +1,12 @@
 import streamlit as st
 from openai import OpenAI
-import oracledb
 
-# 🔑 Add your API key here
+# 🔑 Use secrets (for cloud)
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
 
 # 🧠 Initialize history
 if "history" not in st.session_state:
     st.session_state.history = []
-
-# ⚙️ Oracle DB Connection
-def get_connection():
-    return oracledb.connect(
-        user="system",
-        password="Pa33word#1234!",
-        dsn="JDPKUMAR:1521/FREE"
-    )
 
 # 🎨 Page config
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
@@ -40,34 +30,13 @@ with col2:
 # 📝 User input
 user_input = st.text_area("Enter your query or issue:")
 
-# ▶️ Run SQL on Database
+# ▶️ Run SQL on DB (disabled in cloud)
 if st.button("Run SQL on DB"):
- st.info("⚠️ Database feature works only in local environment")
-    if user_input:
-        try:
-            conn = get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(user_input)
-            rows = cursor.fetchall()
-
-            st.subheader("📊 Query Results")
-            for row in rows:
-                st.write(row)
-
-            cursor.close()
-            conn.close()
-
-        except Exception as e:
-            st.error("❌ DB Error")
-            st.write(str(e))
-    else:
-        st.warning("Please enter SQL query")
+    st.info("⚠️ Database feature works only in local environment")
 
 # 🤖 Analyze with AI
 if st.button("Analyze"):
     if user_input:
-
         if task == "Query Optimization":
             prompt = f"""
             You are an expert Oracle DBA.
@@ -100,7 +69,6 @@ if st.button("Analyze"):
 
                 ai_reply = response.choices[0].message.content
 
-                # 💾 Save history
                 st.session_state.history.append(("User", user_input))
                 st.session_state.history.append(("AI", ai_reply))
 
