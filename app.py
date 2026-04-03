@@ -151,4 +151,4 @@ elif menu == "About":
 
 # 🎯 Footer
 st.markdown("---")
-st.caption("Built by Prem Kumar | AI DBA Assistant")
+st.caption("Built by Pradarshan Kumar JD | AI DBA Assistant")
