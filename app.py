@@ -11,144 +11,187 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# 🎨 Sidebar (SaaS Navigation)
-st.sidebar.title("🚀 AI DBA Assistant")
-st.sidebar.markdown("---")
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-menu = st.sidebar.radio(
-    "📌 Navigation",
-    ["Analyze", "History", "About"]
-)
-
-# 🚀 Title
-st.title("🚀 AI Oracle Performance Assistant")
+# 🔐 Simple user database
+USERS = {
+    "admin": "admin123",
+    "prem": "1234"
+}
 
 # =========================
-# 🔍 ANALYZE PAGE
+# 🔐 LOGIN FUNCTION
 # =========================
-if menu == "Analyze":
+def login():
+    st.title("🔐 Login")
 
-    st.header("🔍 Analyze SQL")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
 
-    col1, col2 = st.columns(2)
+    if st.button("Login"):
+        if username in USERS and USERS[username] == password:
+            st.session_state.logged_in = True
+            st.success("Login successful ✅")
+            st.rerun()
+        else:
+            st.error("Invalid username or password ❌")
 
-    with col1:
-        task = st.selectbox(
-            "Select Task",
-            ["Query Optimization", "Error Debugging", "Explain SQL", "Performance Issue"]
-        )
+# =========================
+# 🚪 LOGOUT FUNCTION
+# =========================
+def logout():
+    if st.sidebar.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
 
-    with col2:
-        st.markdown("### 💡 Tips")
-        st.write("Paste SQL or describe your issue clearly")
+# =========================
+# 🔐 AUTH CHECK
+# =========================
+if not st.session_state.logged_in:
+    login()
 
-    st.subheader("📥 Input")
+else:
+    # 🎨 Sidebar (only after login)
+    st.sidebar.title("🚀 AI DBA Assistant")
+    st.sidebar.markdown("---")
 
-    user_input = st.text_area("Enter your query or issue:")
+    menu = st.sidebar.radio(
+        "📌 Navigation",
+        ["Analyze", "History", "About"]
+    )
 
-    uploaded_file = st.file_uploader("Upload SQL file", type=["sql", "txt"])
+    logout()
 
-    file_content = ""
+    # 🚀 Title
+    st.title("🚀 AI Oracle Performance Assistant")
 
-    if uploaded_file is not None:
-        file_content = uploaded_file.read().decode("utf-8")
+    # =========================
+    # 🔍 ANALYZE PAGE
+    # =========================
+    if menu == "Analyze":
 
-        with st.expander("📄 View Uploaded SQL"):
-            st.code(file_content, language="sql")
+        st.header("🔍 Analyze SQL")
 
-    # ▶️ DB Button
-    if st.button("Run SQL on DB"):
-        st.info("⚠️ Database feature works only in local environment")
+        col1, col2 = st.columns(2)
 
-    # 🤖 Analyze
-    if st.button("Analyze"):
+        with col1:
+            task = st.selectbox(
+                "Select Task",
+                ["Query Optimization", "Error Debugging", "Explain SQL", "Performance Issue"]
+            )
 
-        input_data = file_content if file_content else user_input
+        with col2:
+            st.markdown("### 💡 Tips")
+            st.write("Paste SQL or describe your issue clearly")
 
-        if input_data:
-            if task == "Query Optimization":
-                prompt = f"""
-                You are an expert Oracle DBA.
+        st.subheader("📥 Input")
 
-                Optimize this SQL query for performance.
-                Provide:
-                1. Optimized query
-                2. Explanation
-                3. Index suggestions
+        user_input = st.text_area("Enter your query or issue:")
 
-                SQL:
-                {input_data}
-                """
+        uploaded_file = st.file_uploader("Upload SQL file", type=["sql", "txt"])
+
+        file_content = ""
+
+        if uploaded_file is not None:
+            file_content = uploaded_file.read().decode("utf-8")
+
+            with st.expander("📄 View Uploaded SQL"):
+                st.code(file_content, language="sql")
+
+        # DB button
+        if st.button("Run SQL on DB"):
+            st.info("⚠️ Database feature works only in local environment")
+
+        # Analyze
+        if st.button("Analyze"):
+
+            input_data = file_content if file_content else user_input
+
+            if input_data:
+                if task == "Query Optimization":
+                    prompt = f"""
+                    You are an expert Oracle DBA.
+
+                    Optimize this SQL query for performance.
+                    Provide:
+                    1. Optimized query
+                    2. Explanation
+                    3. Index suggestions
+
+                    SQL:
+                    {input_data}
+                    """
+                else:
+                    prompt = f"""
+                    You are an expert Oracle DBA.
+
+                    Task: {task}
+                    User Input: {input_data}
+
+                    Provide clear and practical solution.
+                    """
+
+                try:
+                    with st.spinner("Analyzing..."):
+                        response = client.chat.completions.create(
+                            model="gpt-4.1-mini",
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+
+                        ai_reply = response.choices[0].message.content
+
+                        st.subheader("📊 Results")
+                        st.write(ai_reply)
+
+                        # Save history
+                        st.session_state.history.append(("User", input_data))
+                        st.session_state.history.append(("AI", ai_reply))
+
+                except Exception as e:
+                    st.error("⚠️ API Error")
+                    st.write(str(e))
             else:
-                prompt = f"""
-                You are an expert Oracle DBA.
+                st.warning("Please enter input or upload file")
 
-                Task: {task}
-                User Input: {input_data}
+        # Clear history
+        if st.button("Clear History"):
+            st.session_state.history = []
 
-                Provide clear and practical solution.
-                """
+    # =========================
+    # 💬 HISTORY PAGE
+    # =========================
+    elif menu == "History":
 
-            try:
-                with st.spinner("Analyzing..."):
-                    response = client.chat.completions.create(
-                        model="gpt-4.1-mini",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
+        st.header("💬 Conversation History")
 
-                    ai_reply = response.choices[0].message.content
+        for role, msg in st.session_state.history:
+            if role == "User":
+                st.markdown(f"**🧑‍💻 You:** {msg}")
+            else:
+                st.markdown(f"**🤖 AI:** {msg}")
 
-                    st.subheader("📊 Results")
-                    st.write(ai_reply)
+    # =========================
+    # ℹ️ ABOUT PAGE
+    # =========================
+    elif menu == "About":
 
-                    # Save history
-                    st.session_state.history.append(("User", input_data))
-                    st.session_state.history.append(("AI", ai_reply))
+        st.header("ℹ️ About")
 
-            except Exception as e:
-                st.error("⚠️ API Error")
-                st.write(str(e))
-        else:
-            st.warning("Please enter input or upload file")
+        st.write("""
+        This is an AI-powered Oracle Performance Assistant.
 
-    # Clear history
-    if st.button("Clear History"):
-        st.session_state.history = []
+        Features:
+        - SQL Optimization
+        - Query Analysis
+        - File Upload Support
+        - AI Recommendations
 
-# =========================
-# 💬 HISTORY PAGE
-# =========================
-elif menu == "History":
+        Built using:
+        - Streamlit
+        - OpenAI API
+        """)
 
-    st.header("💬 Conversation History")
-
-    for role, msg in st.session_state.history:
-        if role == "User":
-            st.markdown(f"**🧑‍💻 You:** {msg}")
-        else:
-            st.markdown(f"**🤖 AI:** {msg}")
-
-# =========================
-# ℹ️ ABOUT PAGE
-# =========================
-elif menu == "About":
-
-    st.header("ℹ️ About")
-
-    st.write("""
-    This is an AI-powered Oracle Performance Assistant.
-
-    Features:
-    - SQL Optimization
-    - Query Analysis
-    - File Upload Support
-    - AI Recommendations
-
-    Built using:
-    - Streamlit
-    - OpenAI API
-    """)
-
-# 🎯 Footer
-st.markdown("---")
-st.caption("Built by Pradarshan Kumar JD | AI DBA Assistant")
+    # Footer
+    st.markdown("---")
+    st.caption("Built by Pradarshan Kumar | AI DBA Assistant")
