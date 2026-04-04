@@ -41,6 +41,15 @@ def signup():
 
     if st.button("Create Account"):
         if new_user and new_pass:
+
+            # 🔍 Check if user exists FIRST
+            result = supabase.table("users").select("*").eq("username", new_user).execute()
+
+            if result.data:
+                st.warning("⚠️ Username already exists. Try another.")
+                return
+
+            # 🔐 Hash password
             hashed = bcrypt.hashpw(new_pass.encode(), bcrypt.gensalt()).decode()
 
             try:
@@ -49,13 +58,13 @@ def signup():
                     "password": hashed
                 }).execute()
 
-                st.success("Account created ✅")
+                st.success("Account created successfully ✅")
 
             except Exception as e:
-                st.error("User already exists or error ❌")
+                st.error("Something went wrong ❌")
                 st.write(e)
         else:
-            st.warning("Fill all fields")
+            st.warning("Please fill all fields")
 
 # =========================
 # 🔐 LOGIN (SUPABASE)
