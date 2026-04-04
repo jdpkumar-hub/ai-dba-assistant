@@ -3,17 +3,15 @@ import streamlit as st
 def admin_page(supabase, username):
     st.header("👑 Admin Dashboard")
 
-    # 🔒 Only admin can access
+    # 🔒 Only admin allowed
     if username != "admin":
         st.error("Access denied ❌")
         return
 
-    # 📊 Fetch users
     result = supabase.table("users").select("email").execute()
 
     st.subheader("👥 Registered Users")
 
-    # 🔁 Loop through users
     for user in result.data:
         col1, col2 = st.columns([3, 1])
 
@@ -21,7 +19,6 @@ def admin_page(supabase, username):
             st.write(user["email"])
 
         with col2:
-            # 🚫 Protect admin user
             if user["email"] == "admin":
                 st.write("🔒 Protected")
             else:
@@ -29,4 +26,3 @@ def admin_page(supabase, username):
                     supabase.table("users").delete().eq("email", user["email"]).execute()
                     st.success(f"Deleted {user['email']}")
                     st.rerun()
-                
