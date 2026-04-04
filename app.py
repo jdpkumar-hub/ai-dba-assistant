@@ -1,7 +1,6 @@
 import streamlit as st
 from openai import OpenAI
 from supabase import create_client
-
 from auth import (
     login,
     signup,
