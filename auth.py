@@ -198,7 +198,14 @@ def reset_password_confirm(supabase):
             st.session_state.username = st.session_state.reset_email
 
             # ✅ Clear reset flow
+            # ✅ Auto login after reset
+            st.session_state.logged_in = True
+            st.session_state.username = st.session_state.reset_email
+
+            # ✅ Clear reset state
             st.session_state.show_reset_otp = False
+            st.session_state.pop("reset_otp", None)
+            st.session_state.pop("reset_expiry", None)
 
 st.success("Password updated & logged in ✅")
 st.rerun()
