@@ -2,19 +2,28 @@ import streamlit as st
 from openai import OpenAI
 from supabase import create_client
 
-from auth import login, signup
+from auth import (
+    login,
+    signup,
+    verify_otp,
+    reset_password_request,
+    reset_password_confirm
+)
+
 from analyze import analyze_page
 from history import history_page
 from admin import admin_page
-from auth import login, signup, verify_otp, reset_password
- 
 
 # =========================
 # 🎨 CONFIG
 # =========================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
+
+# Sidebar branding (ONLY ONCE ✅)
 st.sidebar.image("logo.png", use_container_width=True)
-st.sidebar.title(" AI DBA Assistant")
+st.sidebar.markdown("## AI DBA Assistant")
+st.sidebar.markdown("---")
+
 # =========================
 # 🔑 SETUP
 # =========================
@@ -26,7 +35,7 @@ supabase = create_client(
 )
 
 # =========================
-# 🧠 SESSION
+# 🧠 SESSION INIT
 # =========================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -38,15 +47,19 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 
 # =========================
-# 🔐 AUTH SCREEN
+# 🔐 AUTH FLOW
 # =========================
 if not st.session_state.logged_in:
 
     menu = st.sidebar.selectbox("Select", ["Login", "Sign Up", "Reset Password"])
 
-    # 👉 SHOW OTP SCREEN FIRST
+    # 🔐 Signup OTP
     if st.session_state.get("show_otp"):
         verify_otp(supabase)
+
+    # 🔐 Reset OTP
+    elif st.session_state.get("show_reset_otp"):
+        reset_password_confirm(supabase)
 
     elif menu == "Login":
         login(supabase)
@@ -55,25 +68,25 @@ if not st.session_state.logged_in:
         signup(supabase)
 
     elif menu == "Reset Password":
-        reset_password(supabase)  
+        reset_password_request(supabase)
 
 # =========================
 # 🚀 MAIN APP
 # =========================
 else:
 
-   # st.sidebar.image("logo.png", use_container_width=True)
-   #st.sidebar.title(" AI DBA Assistant")
-    
-
-    # 👤 Show logged-in user
+    # 👤 User Info
     st.sidebar.write(f"👤 {st.session_state.username}")
     st.sidebar.markdown("---")
 
-    # 🔐 ROLE FROM DB
+    # 🔐 Role fetch
     try:
-        user_data = supabase.table("users").select("role").eq("email", st.session_state.username).execute()
+        user_data = supabase.table("users").select("role").eq(
+            "email", st.session_state.username
+        ).execute()
+
         user_role = user_data.data[0]["role"] if user_data.data else "user"
+
     except:
         user_role = "user"
 
@@ -83,14 +96,13 @@ else:
     else:
         st.sidebar.info("👤 User")
 
-    # 📌 MENU
-    menu = st.sidebar.selectbox("Select", ["Login", "Sign Up", "Reset Password"])
+    # 📌 Menu
     if user_role == "admin":
         page = st.sidebar.radio("📌 Menu", ["Analyze", "History", "Admin"])
     else:
         page = st.sidebar.radio("📌 Menu", ["Analyze", "History"])
-        
-    # 🚪 LOGOUT
+
+    # 🚪 Logout
     if st.sidebar.button("🚪 Logout"):
         st.session_state.logged_in = False
         st.session_state.username = ""
@@ -117,23 +129,19 @@ else:
 # =========================
 # 📌 FOOTER
 # =========================
-
 st.markdown("""
 <style>
 .footer {
     position: fixed;
     bottom: 10px;
-    left: 100;
+    left: 20px;
     width: 100%;
-    text-align: left;
     color: gray;
     font-size: 14px;
 }
 </style>
 
 <div class="footer">
-© AI Oracle DBA Assistant | Built by Pradarshan Kumar JD 
+© AI Oracle DBA Assistant | Built by Pradarshan Kumar JD 🚀
 </div>
 """, unsafe_allow_html=True)
-#st.markdown("---")
-#st.caption("© AI Oracle DBA Assistant | Built by Pradarshan Kumar JD ")
