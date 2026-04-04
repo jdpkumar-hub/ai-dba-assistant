@@ -3,9 +3,10 @@ from utils import is_strong_password, hash_password, verify_password
 import random
 import smtplib
 from email.mime.text import MIMEText
+import time
 
 # =========================
-# 📧 SEND OTP EMAIL (DEBUG VERSION)
+# 📧 SEND OTP EMAIL
 # =========================
 def send_otp_email(to_email, otp):
 
@@ -20,24 +21,12 @@ def send_otp_email(to_email, otp):
     msg["From"] = sender
     msg["To"] = to_email
 
-    # 🔍 DEBUG (TEMPORARY)
-    #st.write("📧 Sender:", sender)
-    #st.write("🔑 Password length:", len(password))
-
     try:
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
-
-        # 🔍 DEBUG LOGIN STEP
-        st.write("Connecting to Gmail SMTP...")
-
         server.login(sender, password)
-
-        st.write("Login successful ✅")
-
         server.send_message(msg)
         server.quit()
-
         return True
 
     except Exception as e:
@@ -75,17 +64,20 @@ def signup(supabase):
         st.session_state.temp_email = email
         st.session_state.temp_password = hash_password(password)
 
-        # Generate OTP
+        # Generate OTP (ONLY ONCE ✅)
         otp = str(random.randint(100000, 999999))
         st.session_state.otp = otp
+
+        # ⏳ Set expiry (10 min)
+        st.session_state.otp_expiry = time.time() + 600
 
         # Send email
         sent = send_otp_email(email, otp)
 
         if sent:
             st.success("OTP sent to your email 📧")
-            st.session_state.show_otp = True  
-            st.rerun()   # ✅ THIS FIXES YOUR ISSUE
+            st.session_state.show_otp = True
+            st.rerun()
         else:
             st.error("Failed to send OTP")
 
@@ -98,24 +90,53 @@ def verify_otp(supabase):
 
     user_otp = st.text_input("Enter OTP")
 
-    if st.button("Verify OTP"):
+    # ⏱ Timer
+    remaining_time = int(st.session_state.get("otp_expiry", 0) - time.time())
 
-        if user_otp == st.session_state.get("otp"):
+    if remaining_time > 0:
+        st.info(f"⏳ OTP expires in {remaining_time} seconds")
+    else:
+        st.error("OTP expired ❌")
 
-            supabase.table("users").insert({
-                "email": st.session_state.temp_email,
-                "password": st.session_state.temp_password
-            }).execute()
+    col1, col2 = st.columns(2)
 
-            st.session_state.logged_in = True
-            st.session_state.username = st.session_state.temp_email
-            st.session_state.show_otp = False
+    # ✅ VERIFY
+    with col1:
+        if st.button("Verify OTP"):
 
-            st.success("Account created & verified ✅")
+            if time.time() > st.session_state.get("otp_expiry", 0):
+                st.error("OTP expired. Please resend.")
+                return
+
+            if user_otp == st.session_state.get("otp"):
+
+                supabase.table("users").insert({
+                    "email": st.session_state.temp_email,
+                    "password": st.session_state.temp_password
+                }).execute()
+
+                st.session_state.logged_in = True
+                st.session_state.username = st.session_state.temp_email
+                st.session_state.show_otp = False
+
+                st.success("Account created & verified ✅")
+                st.rerun()
+
+            else:
+                st.error("Invalid OTP ❌")
+
+    # 🔁 RESEND OTP
+    with col2:
+        if st.button("Resend OTP"):
+
+            new_otp = str(random.randint(100000, 999999))
+            st.session_state.otp = new_otp
+            st.session_state.otp_expiry = time.time() + 600
+
+            send_otp_email(st.session_state.temp_email, new_otp)
+
+            st.success("New OTP sent 📧")
             st.rerun()
-
-        else:
-            st.error("Invalid OTP ❌")
 
 
 # =========================
