@@ -107,4 +107,4 @@ else:
 # 📌 FOOTER
 # =========================
 st.markdown("---")
-st.caption("© AI DBA Assistant | Built by Prem Kumar 🚀")
+st.caption("© AI Oracle DBA Assistant | Built by Pradarshan Kumar JD 🚀")
