@@ -1,6 +1,6 @@
 import streamlit as st
 from openai import OpenAI
-
+import bcrypt
 from supabase import create_client
 
 # =========================
