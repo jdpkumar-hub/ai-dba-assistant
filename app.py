@@ -6,6 +6,7 @@ from auth import login, signup
 from analyze import analyze_page
 from history import history_page
 from admin import admin_page
+from auth import login, signup, verify_otp, reset_password
 
 # =========================
 # 🎨 CONFIG
@@ -38,16 +39,23 @@ if "username" not in st.session_state:
 # 🔐 AUTH SCREEN
 # =========================
 if not st.session_state.logged_in:
+
     st.sidebar.image("logo.png", use_container_width=True)
-    st.sidebar.markdown("## AI DBA Assistant")
     st.sidebar.title("🔐 Account")
 
-    menu = st.sidebar.selectbox("Select", ["Login", "Sign Up"])
+    menu = st.sidebar.selectbox("Select", ["Login", "Sign Up", "Reset Password"])
 
-    if menu == "Login":
+    if st.session_state.get("show_otp"):
+        verify_otp(supabase)
+
+    elif menu == "Login":
         login(supabase)
-    else:
+
+    elif menu == "Sign Up":
         signup(supabase)
+
+    elif menu == "Reset Password":
+        reset_password(supabase)
 
 # =========================
 # 🚀 MAIN APP
@@ -76,11 +84,12 @@ else:
         st.sidebar.info("👤 User")
 
     # 📌 MENU
+    menu = st.sidebar.selectbox("Select", ["Login", "Sign Up", "Reset Password"])
     if user_role == "admin":
         page = st.sidebar.radio("📌 Menu", ["Analyze", "History", "Admin"])
     else:
         page = st.sidebar.radio("📌 Menu", ["Analyze", "History"])
-
+        
     # 🚪 LOGOUT
     if st.sidebar.button("🚪 Logout"):
         st.session_state.logged_in = False
@@ -108,5 +117,23 @@ else:
 # =========================
 # 📌 FOOTER
 # =========================
-st.markdown("---")
-st.caption("© AI Oracle DBA Assistant | Built by Pradarshan Kumar JD ")
+
+st.markdown("""
+<style>
+.footer {
+    position: fixed;
+    bottom: 10px;
+    left: 100;
+    width: 100%;
+    text-align: left;
+    color: gray;
+    font-size: 14px;
+}
+</style>
+
+<div class="footer">
+© AI Oracle DBA Assistant | Built by Pradarshan Kumar JD 
+</div>
+""", unsafe_allow_html=True)
+#st.markdown("---")
+#st.caption("© AI Oracle DBA Assistant | Built by Pradarshan Kumar JD ")

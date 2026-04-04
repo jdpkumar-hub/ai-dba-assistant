@@ -1,8 +1,9 @@
 import streamlit as st
 from utils import is_strong_password, hash_password, verify_password
+import random
 
 # =========================
-# 📝 SIGNUP
+# 📝 SIGNUP + OTP
 # =========================
 def signup(supabase):
     st.title("📝 Sign Up")
@@ -10,45 +11,82 @@ def signup(supabase):
     email = st.text_input("Email", key="signup_email")
     password = st.text_input("Password", type="password", key="signup_password")
 
-    if st.button("Create Account", key="signup_btn"):
+    if st.button("Create Account"):
 
-        # ✅ Empty check
         if not email or not password:
             st.warning("Please fill all fields")
             return
 
-        # 🔐 Password validation
         if not is_strong_password(password):
-            st.warning("Password must contain:\n- 6+ chars\n- 1 uppercase\n- 1 number")
+            st.warning("Weak password")
             return
 
-        try:
-            # 🔍 Check if user exists
-            result = supabase.table("users").select("*").eq("email", email).execute()
+        result = supabase.table("users").select("*").eq("email", email).execute()
 
-            if result.data:
-                st.warning("⚠️ Email already registered")
-                return
+        if result.data:
+            st.warning("User already exists")
+            return
 
-            # 🔒 Hash password
-            hashed = hash_password(password)
+        # Save temp data
+        st.session_state.temp_email = email
+        st.session_state.temp_password = hash_password(password)
 
-            # 💾 Insert user
+        # Generate OTP
+        otp = str(random.randint(100000, 999999))
+        st.session_state.otp = otp
+
+        st.info(f"Your OTP: {otp}")  # replace with email later
+        st.session_state.show_otp = True
+
+
+# =========================
+# 🔐 VERIFY OTP
+# =========================
+def verify_otp(supabase):
+    st.title("🔐 Verify OTP")
+
+    user_otp = st.text_input("Enter OTP")
+
+    if st.button("Verify"):
+
+        if user_otp == st.session_state.get("otp"):
+
             supabase.table("users").insert({
-                "email": email,
-                "password": hashed
+                "email": st.session_state.temp_email,
+                "password": st.session_state.temp_password
             }).execute()
 
-            # ✅ Auto login
             st.session_state.logged_in = True
-            st.session_state.username = email
+            st.session_state.username = st.session_state.temp_email
 
-            st.success("Account created & logged in ✅")
+            st.success("Account created & verified ✅")
             st.rerun()
+        else:
+            st.error("Invalid OTP ❌")
 
-        except Exception as e:
-            st.error("Signup failed ❌")
-            st.write(e)
+
+# =========================
+# 🔑 RESET PASSWORD
+# =========================
+def reset_password(supabase):
+    st.title("🔑 Reset Password")
+
+    email = st.text_input("Email")
+    new_pass = st.text_input("New Password", type="password")
+
+    if st.button("Reset Password"):
+
+        if not is_strong_password(new_pass):
+            st.warning("Weak password")
+            return
+
+        hashed = hash_password(new_pass)
+
+        supabase.table("users").update({
+            "password": hashed
+        }).eq("email", email).execute()
+
+        st.success("Password updated ✅")
 
 
 # =========================
@@ -60,30 +98,23 @@ def login(supabase):
     email = st.text_input("Email", key="login_email")
     password = st.text_input("Password", type="password", key="login_password")
 
-    if st.button("Login", key="login_btn"):
+    if st.button("Login"):
 
-        # ✅ Empty check
         if not email or not password:
-            st.warning("Please enter email and password")
+            st.warning("Enter credentials")
             return
 
-        try:
-            result = supabase.table("users").select("*").eq("email", email).execute()
+        result = supabase.table("users").select("*").eq("email", email).execute()
 
-            if result.data:
-                stored_password = result.data[0]["password"]
+        if result.data:
+            stored_password = result.data[0]["password"]
 
-                if verify_password(password, stored_password):
-                    st.session_state.logged_in = True
-                    st.session_state.username = email
-
-                    st.success("Login successful ✅")
-                    st.rerun()
-                else:
-                    st.error("Wrong password ❌")
+            if verify_password(password, stored_password):
+                st.session_state.logged_in = True
+                st.session_state.username = email
+                st.success("Login successful ✅")
+                st.rerun()
             else:
-                st.error("User not found ❌")
-
-        except Exception as e:
-            st.error("Login failed ❌")
-            st.write(e)
+                st.error("Wrong password")
+        else:
+            st.error("User not found")
