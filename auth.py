@@ -193,10 +193,15 @@ def reset_password_confirm(supabase):
                 "password": hashed
             }).eq("email", st.session_state.reset_email).execute()
 
+            # ✅ Login user automatically
+            st.session_state.logged_in = True
+            st.session_state.username = st.session_state.reset_email
+
+            # ✅ Clear reset flow
             st.session_state.show_reset_otp = False
 
-            st.success("Password updated ✅")
-            st.rerun()
+st.success("Password updated & logged in ✅")
+st.rerun()
 
     with col2:
         if st.button("Resend OTP"):
