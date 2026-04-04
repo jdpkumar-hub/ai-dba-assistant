@@ -13,11 +13,6 @@ from admin import admin_page
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
 
 # =========================
-# 🔑 CONSTANTS
-# =========================
-ADMIN_EMAIL = "jdpkumar@yahoo.com"
-
-# =========================
 # 🔑 SETUP
 # =========================
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -63,17 +58,23 @@ else:
     st.sidebar.write(f"👤 {st.session_state.username}")
     st.sidebar.markdown("---")
 
-    # 🔐 ROLE CHECK
-    is_admin = st.session_state.username == ADMIN_EMAIL
+    # =========================
+    # 🔐 ROLE FROM DB (FINAL FIX)
+    # =========================
+    try:
+        user_data = supabase.table("users").select("role").eq("email", st.session_state.username).execute()
+        user_role = user_data.data[0]["role"] if user_data.data else "user"
+    except:
+        user_role = "user"
 
     # 👑 Role label
-    if is_admin:
+    if user_role == "admin":
         st.sidebar.success("👑 Admin")
     else:
         st.sidebar.info("👤 User")
 
     # 📌 MENU
-    if is_admin:
+    if user_role == "admin":
         page = st.sidebar.radio("📌 Menu", ["Analyze", "History", "Admin"])
     else:
         page = st.sidebar.radio("📌 Menu", ["Analyze", "History"])
