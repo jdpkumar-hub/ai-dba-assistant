@@ -5,7 +5,7 @@ import smtplib
 from email.mime.text import MIMEText
 
 # =========================
-# 📧 SEND OTP EMAIL
+# 📧 SEND OTP EMAIL (DEBUG VERSION)
 # =========================
 def send_otp_email(to_email, otp):
 
@@ -20,16 +20,29 @@ def send_otp_email(to_email, otp):
     msg["From"] = sender
     msg["To"] = to_email
 
+    # 🔍 DEBUG (TEMPORARY)
+    st.write("📧 Sender:", sender)
+    st.write("🔑 Password length:", len(password))
+
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login(sender, password)
-            server.send_message(msg)
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+
+        # 🔍 DEBUG LOGIN STEP
+        st.write("Connecting to Gmail SMTP...")
+
+        server.login(sender, password)
+
+        st.write("Login successful ✅")
+
+        server.send_message(msg)
+        server.quit()
+
         return True
 
     except Exception as e:
         st.error("Email sending failed ❌")
-        st.write(e)
+        st.write("Error:", e)
         return False
 
 
@@ -71,7 +84,8 @@ def signup(supabase):
 
         if sent:
             st.success("OTP sent to your email 📧")
-            st.session_state.show_otp = True
+            st.session_state.show_otp = True  
+            st.rerun()   # ✅ THIS FIXES YOUR ISSUE
         else:
             st.error("Failed to send OTP")
 
