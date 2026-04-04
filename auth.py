@@ -1,58 +1,77 @@
 import streamlit as st
 from utils import is_strong_password, hash_password, verify_password
 
+# =========================
+# 📝 SIGNUP
+# =========================
 def signup(supabase):
     st.title("📝 Sign Up")
 
-    new_user = st.text_input("Username")
-    new_pass = st.text_input("Password", type="password")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
 
     if st.button("Create Account"):
 
-        if not new_user or not new_pass:
+        # ✅ Empty check
+        if not email or not password:
             st.warning("Please fill all fields")
             return
 
-        if not is_strong_password(new_pass):
-            st.warning("Weak password")
+        # 🔐 Password validation
+        if not is_strong_password(password):
+            st.warning("Password must contain:\n- 6+ chars\n- 1 uppercase\n- 1 number")
             return
 
-        result = supabase.table("users").select("*").eq("username", new_user).execute()
+        # 🔍 Check if user exists
+        result = supabase.table("users").select("*").eq("email", email).execute()
 
         if result.data:
-            st.warning("User exists")
+            st.warning("⚠️ Email already registered")
             return
 
-        hashed = hash_password(new_pass)
+        # 🔒 Hash password
+        hashed = hash_password(password)
 
-        supabase.table("users").insert({
-            "username": new_user,
-            "password": hashed
-        }).execute()
+        try:
+            supabase.table("users").insert({
+                "email": email,
+                "password": hashed
+            }).execute()
 
-        st.session_state.logged_in = True
-        st.session_state.username = new_user
-        st.rerun()
+            # ✅ Auto login
+            st.session_state.logged_in = True
+            st.session_state.username = email
+
+            st.success("Account created & logged in ✅")
+            st.rerun()
+
+        except Exception as e:
+            st.error("Signup failed ❌")
+            st.write(e)
 
 
+# =========================
+# 🔐 LOGIN
+# =========================
 def login(supabase):
     st.title("🔐 Login")
 
-    username = st.text_input("Username")
+    email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
 
-        result = supabase.table("users").select("*").eq("username", username).execute()
+        result = supabase.table("users").select("*").eq("email", email).execute()
 
         if result.data:
             stored_password = result.data[0]["password"]
 
             if verify_password(password, stored_password):
                 st.session_state.logged_in = True
-                st.session_state.username = username
+                st.session_state.username = email
+                st.success("Login successful ✅")
                 st.rerun()
             else:
-                st.error("Wrong password")
+                st.error("Wrong password ❌")
         else:
-            st.error("User not found")
+            st.error("User not found ❌")
