@@ -1,87 +1,70 @@
 import streamlit as st
 
-def analyze_page(client):
+def analyze_page(client, supabase):
 
-    st.header("🔍 Analyze SQL")
+    st.title("🔍 Analyze SQL")
 
-    # =========================
-    # 🎯 TASK SELECTION
-    # =========================
-    task = st.selectbox(
-        "Select Task",
-        ["Query Optimization", "Error Debugging", "Explain SQL", "Performance Issue"]
-    )
+    user_email = st.session_state.get("username")
 
     # =========================
-    # 📥 INPUT
+    # FETCH USER DATA
     # =========================
-    user_input = st.text_area("Enter your query or issue:")
+    user_data = supabase.table("users").select("*").eq(
+        "email", user_email
+    ).execute()
 
-    uploaded_file = st.file_uploader("Upload SQL file", type=["sql", "txt"])
+    user = user_data.data[0] if user_data.data else {}
 
-    file_content = ""
-
-    if uploaded_file is not None:
-        file_content = uploaded_file.read().decode("utf-8")
-
-        with st.expander("📄 View Uploaded SQL"):
-            st.code(file_content, language="sql")
+    # ✅ SAFE DEFAULTS
+    user_role = user.get("role", "user")
+    usage_count = user.get("usage_count") or 0
 
     # =========================
-    # 🚀 ANALYZE BUTTON
+    # LIMIT FREE USERS
     # =========================
+    if user_role == "user" and usage_count >= 5:
+        st.error("🚫 Free limit reached. Upgrade to Pro.")
+        return
+
+    # =========================
+    # UI
+    # =========================
+    task = st.selectbox("Select Task", ["Query Optimization", "Explain Plan"])
+
+    query = st.text_area("Enter your query:")
+
     if st.button("Analyze"):
 
-        input_data = file_content if file_content else user_input
+        if not query.strip():
+            st.warning("Please enter a query")
+            return
 
-        if input_data:
-
-            # 🧠 Prompt
-            if task == "Query Optimization":
-                prompt = f"""
-                You are an expert Oracle DBA.
-
-                Optimize this SQL query for performance.
-                Provide:
-                1. Optimized query
-                2. Explanation
-                3. Index suggestions
-
-                SQL:
-                {input_data}
-                """
-            else:
-                prompt = f"""
-                You are an expert Oracle DBA.
-
-                Task: {task}
-
-                Analyze and provide solution:
-                {input_data}
-                """
+        # =========================
+        # OPENAI CALL
+        # =========================
+        with st.spinner("Analyzing..."):
 
             try:
-                with st.spinner("Analyzing..."):
-                    response = client.chat.completions.create(
-                        model="gpt-4.1-mini",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are an Oracle DBA expert."},
+                        {"role": "user", "content": query}
+                    ]
+                )
 
-                    ai_reply = response.choices[0].message.content
+                result = response.choices[0].message.content
 
-                    # =========================
-                    # 📊 OUTPUT
-                    # =========================
-                    st.subheader("📊 Results")
-                    st.write(ai_reply)
+                st.success("✅ Analysis Complete")
+                st.write(result)
 
-                    # Save history
-                    st.session_state.history.append(("User", input_data))
-                    st.session_state.history.append(("AI", ai_reply))
+                # =========================
+                # UPDATE USAGE
+                # =========================
+                if user_role == "user":
+                    supabase.table("users").update({
+                        "usage_count": usage_count + 1
+                    }).eq("email", user_email).execute()
 
             except Exception as e:
-                st.error("Error occurred")
-                st.write(e)
-
-        else:
-            st.warning("Please enter input or upload file")
+                st.error(f"Error: {e}")
