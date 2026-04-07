@@ -1,61 +1,72 @@
 from flask import Flask, request, jsonify
-import stripe
 from supabase import create_client
-import os
+import json
 
 app = Flask(__name__)
 
 # =========================
-# CONFIG
+# CONFIG (USE YOUR VALUES)
 # =========================
-stripe.api_key = "sk_test_51TIgBOLpPn2nuTvMNXCNhRpiUkDGlSDGmL21Pb4liOnpz86GgQwoe91KpBHpS1PHZyYxtA2vmY0Y6xsZnFQcwvPr00Rb83zsGx"   # 🔴 YOUR SECRET KEY
-endpoint_secret = "whsec_OK6ig3uDMnDTHWrhSb2QVy50YAkPKrF9"    # 🔴 FROM STRIPE WEBHOOK
 
-SUPABASE_URL = "https://wequqsbvhydvugifevhm.supabase.co"
-SUPABASE_KEY = "sb_publishable_ZOfGu0PLriJqtJLdmk6Bkg_mJ3HrURB"
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+
+# ✅ IMPORTANT: USE SERVICE ROLE KEY (NOT publishable)
+SUPABASE_KEY =  st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# =========================
+# TEST ROUTE
+# =========================
+@app.route("/", methods=["GET"])
+def home():
+    return "Webhook server running"
 
 # =========================
 # WEBHOOK
 # =========================
 @app.route("/webhook", methods=["POST"])
 def webhook():
-
-    payload = request.data
-    sig_header = request.headers.get("Stripe-Signature")
-
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
-    except Exception as e:
-        print("❌ Signature error:", e)
-        return "Error", 400
+        print("\n🔥 ===== WEBHOOK HIT =====")
 
-    # =========================
-    # PAYMENT SUCCESS
-    # =========================
-    if event["type"] == "checkout.session.completed":
+        payload = request.data
+        event = json.loads(payload)
 
-        session = event["data"]["object"]
+        event_type = event.get("type")
+        print("📌 EVENT TYPE:", event_type)
 
-        email = session.get("customer_email")
+        # =========================
+        # HANDLE PAYMENT SUCCESS
+        # =========================
+        if event_type == "checkout.session.completed":
 
-        print("✅ Payment success for:", email)
+            session = event.get("data", {}).get("object", {})
 
-        if email:
-            supabase.table("users").update({
+            email = session.get("customer_email")
+
+            print("📧 EMAIL:", email)
+
+            if not email:
+                print("❌ No email found")
+                return "No email", 400
+
+            # UPDATE USER ROLE
+            response = supabase.table("users").update({
                 "role": "pro"
             }).eq("email", email).execute()
 
-            print("✅ Role updated to PRO")
+            print("✅ UPDATED TO PRO:", response)
 
-    return jsonify({"status": "success"}), 200
+        return jsonify({"status": "success"}), 200
+
+    except Exception as e:
+        print("❌ ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500
 
 
 # =========================
-# RUN
+# RUN SERVER
 # =========================
 if __name__ == "__main__":
     app.run(port=5000)
