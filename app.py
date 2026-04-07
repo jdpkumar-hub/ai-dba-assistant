@@ -42,8 +42,7 @@ if "username" not in st.session_state:
 # 🔥 STRIPE SUCCESS HANDLER (BOLD MESSAGE)
 # =========================
  query_params = st.query_params
-
-if query_params.get("success") == "true":
+    if query_params.get("success") == "true":
 
     st.success("🎉 **Payment Successful! Your account is upgraded to PRO 🚀**")
     st.markdown("### 🔐 **Please login again to continue**")
