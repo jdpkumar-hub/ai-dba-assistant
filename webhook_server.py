@@ -1,23 +1,26 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import stripe
 from supabase import create_client
 import os
 
 app = Flask(__name__)
 
-# 🔐 Stripe
-stripe.api_key = "sk_test_51TIgBOLpPn2nuTvMNXCNhRpiUkDGlSDGmL21Pb4liOnpz86GgQwoe91KpBHpS1PHZyYxtA2vmY0Y6xsZnFQcwvPr00Rb83zsGx"   # your STRIPE SECRET KEY
-endpoint_secret = "whsec_OK6ig3uDMnDTHWrhSb2QVy50YAkPKrF9"    # webhook secret
+# =========================
+# CONFIG
+# =========================
+stripe.api_key = "sk_test_51TIgBOLpPn2nuTvMNXCNhRpiUkDGlSDGmL21Pb4liOnpz86GgQwoe91KpBHpS1PHZyYxtA2vmY0Y6xsZnFQcwvPr00Rb83zsGx"   # 🔴 YOUR SECRET KEY
+endpoint_secret = "whsec_OK6ig3uDMnDTHWrhSb2QVy50YAkPKrF9"    # 🔴 FROM STRIPE WEBHOOK
 
-# 🗄 Supabase
 SUPABASE_URL = "https://wequqsbvhydvugifevhm.supabase.co"
 SUPABASE_KEY = "sb_publishable_ZOfGu0PLriJqtJLdmk6Bkg_mJ3HrURB"
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
+# =========================
+# WEBHOOK
+# =========================
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    print("🔥 WEBHOOK HIT")
 
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
@@ -30,25 +33,29 @@ def webhook():
         print("❌ Signature error:", e)
         return "Error", 400
 
-    # 🎯 EVENT: PAYMENT SUCCESS
+    # =========================
+    # PAYMENT SUCCESS
+    # =========================
     if event["type"] == "checkout.session.completed":
+
         session = event["data"]["object"]
 
-        # 🔑 Extract email (IMPORTANT FIX)
-        email = session.get("customer_details", {}).get("email")
+        email = session.get("customer_email")
 
-        print(f"💰 Payment success for {email}")
+        print("✅ Payment success for:", email)
 
         if email:
-            # 🔥 UPDATE USER ROLE TO PRO
             supabase.table("users").update({
                 "role": "pro"
             }).eq("email", email).execute()
 
-            print(f"✅ Upgraded {email} to PRO")
+            print("✅ Role updated to PRO")
 
-    return "Success", 200
+    return jsonify({"status": "success"}), 200
 
 
+# =========================
+# RUN
+# =========================
 if __name__ == "__main__":
     app.run(port=5000)
