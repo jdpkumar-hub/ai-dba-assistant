@@ -41,19 +41,29 @@ if "username" not in st.session_state:
 # =========================
 # STRIPE SUCCESS HANDLER
 # =========================
+   
+# =========================
+# STRIPE SUCCESS HANDLER (FIXED)
+# =========================
 query_params = st.query_params
 
-if query_params.get("success") == "true":
+# Prevent infinite loop
+if query_params.get("success") == "true" and not st.session_state.get("payment_handled"):
+
+    st.session_state.payment_handled = True
 
     st.success("🎉 **Payment Successful! Your account is upgraded to PRO 🚀**")
     st.markdown("### 🔐 **Please login again to continue**")
 
+    # Clear query params safely
     st.query_params.clear()
 
+    # Reset session
     st.session_state.logged_in = False
     st.session_state.username = ""
 
-    st.rerun()
+    # DO NOT LOOP RERUN
+    st.stop()
 
 # =========================
 # AUTH SECTION
