@@ -169,6 +169,71 @@ def verify_otp(supabase):
 
 
 # =========================
+# 🔑 RESET PASSWORD REQUEST
+# =========================
+def reset_password_request(supabase):
+    st.title("🔑 Reset Password")
+
+    email = st.text_input("Email")
+
+    if st.button("Send OTP"):
+
+        result = supabase.table("users").select("*").eq("email", email).execute()
+
+        if not result.data:
+            st.error("User not found ❌")
+            return
+
+        otp = str(random.randint(100000, 999999))
+
+        st.session_state.reset_email = email
+        st.session_state.reset_otp = otp
+        st.session_state.reset_expiry = time.time() + 600
+        st.session_state.show_reset_otp = True
+
+        send_otp_email(email, otp)
+
+        st.success("OTP sent 📧")
+        st.rerun()
+
+
+# =========================
+# 🔐 RESET PASSWORD CONFIRM
+# =========================
+def reset_password_confirm(supabase):
+    st.title("🔐 Reset Password")
+
+    otp = st.text_input("Enter OTP")
+    new_pass = st.text_input("New Password", type="password")
+    confirm_pass = st.text_input("Confirm Password", type="password")
+
+    if st.button("Update Password"):
+
+        if otp != st.session_state.get("reset_otp"):
+            st.error("Invalid OTP ❌")
+            return
+
+        if new_pass != confirm_pass:
+            st.error("Passwords do not match ❌")
+            return
+
+        if not is_strong_password(new_pass):
+            st.warning("Weak password")
+            return
+
+        hashed = hash_password(new_pass)
+
+        supabase.table("users").update({
+            "password": hashed
+        }).eq("email", st.session_state.reset_email).execute()
+
+        st.session_state.show_reset_otp = False
+
+        st.success("Password updated ✅")
+        st.rerun()
+
+
+# =========================
 # 🔐 LOGIN
 # =========================
 def login(supabase):
