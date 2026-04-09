@@ -5,15 +5,17 @@ import smtplib
 from email.mime.text import MIMEText
 import time
 from urllib.parse import urlencode
+import os
 
 SUPABASE_URL = "https://wequqsbvhydvugifevhm.supabase.co"
+BASE_URL = os.getenv("APP_URL", "http://localhost:8501")
 
 # =========================
 # 🔵 GOOGLE LOGIN BUTTON
 # =========================
 def google_login_button():
-    url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=https://ai-oracle-assistant.streamlit.app"
-    st.markdown(f"[🔵 Continue with Google]({url})")
+    url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to={BASE_URL}"
+   # st.markdown(f"[🔵 Continue with Google]({url})")
     
     st.markdown(f"""
     <a href="{url}">
