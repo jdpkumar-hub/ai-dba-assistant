@@ -35,15 +35,29 @@ def send_otp_email(to_email, otp):
 # 📝 SIGNUP
 # =========================
 def signup(supabase):
-    st.title("📝 Sign Up")
+    st.title("📝 Create Account")
 
-    email = st.text_input("Email", key="signup_email")
-    password = st.text_input("Password", type="password", key="signup_password")
+    email = st.text_input("Email")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        first_name = st.text_input("First Name")
+    with col2:
+        last_name = st.text_input("Last Name")
+
+    show_password = st.checkbox("Show Password")
+
+    password = st.text_input("Password", type="default" if show_password else "password")
+    confirm_password = st.text_input("Confirm Password", type="default" if show_password else "password")
 
     if st.button("Create Account"):
 
-        if not email or not password:
-            st.warning("Please fill all fields")
+        if not email or not password or not confirm_password or not first_name:
+            st.warning("Please fill all required fields")
+            return
+
+        if password != confirm_password:
+            st.error("Passwords do not match ❌")
             return
 
         if not is_strong_password(password):
@@ -58,10 +72,11 @@ def signup(supabase):
 
         st.session_state.temp_email = email
         st.session_state.temp_password = hash_password(password)
+        st.session_state.first_name = first_name
+        st.session_state.last_name = last_name
 
         otp = str(random.randint(100000, 999999))
         st.session_state.otp = otp
-        st.session_state.otp_expiry = time.time() + 600
 
         send_otp_email(email, otp)
 
