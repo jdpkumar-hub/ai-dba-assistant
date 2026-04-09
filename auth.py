@@ -39,12 +39,11 @@ def google_login_button():
 # =========================
 def handle_google_login(supabase):
     try:
-        # 🔥 Step 1: extract token from URL
-        extract_token_from_url()
+        # 🔥 force JS execution
+        extract_token()
 
-        # 🔥 Step 2: read token
-        query_params = st.query_params
-        token = query_params.get("token")
+        # 🔥 read token from query
+        token = st.query_params.get("token")
 
         if token:
             user = supabase.auth.get_user(token)
@@ -65,7 +64,7 @@ def handle_google_login(supabase):
                 st.session_state.logged_in = True
                 st.session_state.username = email
 
-                # 🔥 clear token from URL
+                # ✅ clean URL
                 st.query_params.clear()
 
                 st.rerun()
@@ -73,24 +72,26 @@ def handle_google_login(supabase):
     except Exception as e:
         pass
 
-
 # =========================
 # 📧 ADD TOKEN EXTRACTOR
 # =========================
-def extract_token_from_url():
-    st.markdown("""
+def extract_token():
+    import streamlit.components.v1 as components
+
+    components.html("""
     <script>
     const hash = window.location.hash;
+
     if (hash && hash.includes("access_token")) {
         const params = new URLSearchParams(hash.substring(1));
         const token = params.get("access_token");
 
         if (token) {
-            window.location.href = window.location.pathname + "?token=" + token;
+            window.location.href = window.location.origin + window.location.pathname + "?token=" + token;
         }
     }
     </script>
-    """, unsafe_allow_html=True)
+    """, height=0)
 
 
 

@@ -30,6 +30,9 @@ supabase = create_client(
     st.secrets["SUPABASE_KEY"]
 )
 
+# 🔥 GOOGLE HANDLER (TOP LEVEL)
+handle_google_login(supabase)
+
 # Session init
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -40,8 +43,6 @@ if "username" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "Analyze"
 
-# 🔥 GOOGLE HANDLER (TOP LEVEL)
-handle_google_login(supabase)
 
 # =========================
 # AUTH FLOW
