@@ -31,7 +31,7 @@ supabase = create_client(
 )
 
 # 🔥 GOOGLE HANDLER (TOP LEVEL)
-handle_google_login(supabase)
+# handle_google_login(supabase)   # 🔴 Disabled Google auth
 
 # Session init
 if "logged_in" not in st.session_state:
