@@ -15,8 +15,7 @@ BASE_URL = os.getenv("APP_URL", "http://localhost:8501")
 # =========================
 def google_login_button():
     url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to={BASE_URL}"
-   # st.markdown(f"[🔵 Continue with Google]({url})")
-    
+
     st.markdown(f"""
     <a href="{url}">
     <div style="
@@ -40,26 +39,29 @@ def google_login_button():
 # 🔵 HANDLE GOOGLE LOGIN
 # =========================
 def handle_google_login(supabase):
-    user = supabase.auth.get_user()
+    try:
+        session = supabase.auth.get_session()
 
-    if user and user.user:
-        email = user.user.email
+        if session and session.user:
+            email = session.user.email
 
-        result = supabase.table("users").select("*").eq("email", email).execute()
+            result = supabase.table("users").select("*").eq("email", email).execute()
 
-        if not result.data:
-            supabase.table("users").insert({
-                "email": email,
-                "password": "google_oauth",
-                "first_name": user.user.user_metadata.get("full_name", ""),
-                "last_name": ""
-            }).execute()
+            if not result.data:
+                supabase.table("users").insert({
+                    "email": email,
+                    "password": "google_oauth",
+                    "first_name": session.user.user_metadata.get("full_name", ""),
+                    "last_name": ""
+                }).execute()
 
-        st.session_state.logged_in = True
-        st.session_state.username = email
+            st.session_state.logged_in = True
+            st.session_state.username = email
 
-        st.success("Logged in with Google ✅")
-        st.rerun()
+            st.rerun()  # ✅ critical
+
+    except:
+        pass
 
 
 # =========================
@@ -133,7 +135,6 @@ def signup(supabase):
 
         otp = str(random.randint(100000, 999999))
         st.session_state.otp = otp
-        st.session_state.otp_expiry = time.time() + 600
 
         send_otp_email(email, otp)
 
@@ -164,7 +165,6 @@ def verify_otp(supabase):
             st.session_state.username = st.session_state.temp_email
             st.session_state.show_otp = False
 
-            st.success("Account created ✅")
             st.rerun()
         else:
             st.error("Invalid OTP ❌")
@@ -190,7 +190,6 @@ def reset_password_request(supabase):
 
         st.session_state.reset_email = email
         st.session_state.reset_otp = otp
-        st.session_state.reset_expiry = time.time() + 600
         st.session_state.show_reset_otp = True
 
         send_otp_email(email, otp)
@@ -230,7 +229,6 @@ def reset_password_confirm(supabase):
         }).eq("email", st.session_state.reset_email).execute()
 
         st.session_state.show_reset_otp = False
-
         st.success("Password updated ✅")
         st.rerun()
 
@@ -260,7 +258,6 @@ def login(supabase):
             if verify_password(password, stored):
                 st.session_state.logged_in = True
                 st.session_state.username = email
-                st.success("Login successful ✅")
                 st.rerun()
             else:
                 st.error("Wrong password ❌")

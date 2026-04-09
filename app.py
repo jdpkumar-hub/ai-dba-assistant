@@ -2,14 +2,19 @@ import streamlit as st
 from openai import OpenAI
 from supabase import create_client
 
-from auth import login, signup, verify_otp, reset_password_request, reset_password_confirm, handle_google_login
+from auth import (
+    login,
+    signup,
+    verify_otp,
+    reset_password_request,
+    reset_password_confirm,
+    handle_google_login
+)
+
 from analyze import analyze_page
 from history import history_page
 from admin import admin_page
 
-# =========================
-# CONFIG
-# =========================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
 
 # Sidebar
@@ -17,9 +22,7 @@ st.sidebar.image("logo.png", use_container_width=True)
 st.sidebar.markdown("## AI DBA Assistant")
 st.sidebar.markdown("---")
 
-# =========================
-# SETUP
-# =========================
+# Setup
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 supabase = create_client(
@@ -27,22 +30,22 @@ supabase = create_client(
     st.secrets["SUPABASE_KEY"]
 )
 
-# =========================
-# SESSION
-# =========================
+# Session init
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-
-if "history" not in st.session_state:
-    st.session_state.history = []
 
 if "username" not in st.session_state:
     st.session_state.username = ""
 
+if "page" not in st.session_state:
+    st.session_state.page = "Analyze"
+
+# 🔥 GOOGLE HANDLER (TOP LEVEL)
+handle_google_login(supabase)
+
 # =========================
 # AUTH FLOW
 # =========================
-handle_google_login(supabase)   # ✅ MOVE HERE
 if not st.session_state.logged_in:
 
     menu = st.sidebar.selectbox("Select", ["Login", "Sign Up", "Reset Password"])
@@ -69,8 +72,7 @@ else:
 
     st.sidebar.write(f"👤 {st.session_state.username}")
     st.sidebar.markdown("---")
-    handle_google_login(supabase)
-    # Role check
+
     try:
         user_data = supabase.table("users").select("role").eq(
             "email", st.session_state.username
@@ -81,15 +83,12 @@ else:
         user_role = "user"
 
     if user_role == "admin":
-        st.sidebar.success("👑 Admin")
         page = st.sidebar.radio("Menu", ["Analyze", "History", "Admin"])
     else:
-        st.sidebar.info("👤 User")
         page = st.sidebar.radio("Menu", ["Analyze", "History"])
 
     if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.username = ""
+        st.session_state.clear()
         st.rerun()
 
     if page == "Analyze":
@@ -100,23 +99,3 @@ else:
 
     elif page == "Admin":
         admin_page(supabase, st.session_state.username)
-
-# =========================
-# FOOTER
-# =========================
-st.markdown("""
-<style>
-.footer {
-    position: fixed;
-    bottom: 10px;
-    left: 250px;
-    width: 100%;
-    color: gray;
-    font-size: 16px;
-}
-</style>
-
-<div class="footer">
-© AI Oracle DBA Assistant | Built by Pradarshan Kumar JD 🚀
-</div>
-""", unsafe_allow_html=True)
