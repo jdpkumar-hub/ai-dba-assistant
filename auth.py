@@ -9,7 +9,6 @@ import time
 # 📧 SEND OTP EMAIL
 # =========================
 def send_otp_email(to_email, otp):
-
     sender = st.secrets["EMAIL_ADDRESS"]
     password = st.secrets["EMAIL_PASSWORD"]
 
@@ -35,15 +34,27 @@ def send_otp_email(to_email, otp):
 # 📝 SIGNUP
 # =========================
 def signup(supabase):
-    st.title("📝 Sign Up")
+    st.title("📝 Create Account")
 
     email = st.text_input("Email", key="signup_email")
-    password = st.text_input("Password", type="password", key="signup_password")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        first_name = st.text_input("First Name")
+    with col2:
+        last_name = st.text_input("Last Name")
+
+    password = st.text_input("Password", type="password")
+    confirm_password = st.text_input("Confirm Password", type="password")
 
     if st.button("Create Account"):
 
-        if not email or not password:
-            st.warning("Please fill all fields")
+        if not email or not password or not confirm_password or not first_name:
+            st.warning("Please fill all required fields")
+            return
+
+        if password != confirm_password:
+            st.error("Passwords do not match ❌")
             return
 
         if not is_strong_password(password):
@@ -58,6 +69,8 @@ def signup(supabase):
 
         st.session_state.temp_email = email
         st.session_state.temp_password = hash_password(password)
+        st.session_state.first_name = first_name
+        st.session_state.last_name = last_name
 
         otp = str(random.randint(100000, 999999))
         st.session_state.otp = otp
@@ -96,9 +109,12 @@ def verify_otp(supabase):
 
             if user_otp == st.session_state.get("otp"):
 
+                # ✅ FIXED INDENTATION HERE
                 supabase.table("users").insert({
                     "email": st.session_state.temp_email,
-                    "password": st.session_state.temp_password
+                    "password": st.session_state.temp_password,
+                    "first_name": st.session_state.first_name,
+                    "last_name": st.session_state.last_name
                 }).execute()
 
                 st.session_state.logged_in = True
@@ -193,16 +209,9 @@ def reset_password_confirm(supabase):
                 "password": hashed
             }).eq("email", st.session_state.reset_email).execute()
 
-            # ✅ Login user automatically
             st.session_state.logged_in = True
             st.session_state.username = st.session_state.reset_email
 
-            # ✅ Clear reset flow
-            # ✅ Auto login after reset
-            st.session_state.logged_in = True
-            st.session_state.username = st.session_state.reset_email
-
-            # ✅ Clear reset state
             st.session_state.show_reset_otp = False
             st.session_state.pop("reset_otp", None)
             st.session_state.pop("reset_expiry", None)
