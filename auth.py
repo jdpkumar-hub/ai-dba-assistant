@@ -4,101 +4,12 @@ import random
 import smtplib
 from email.mime.text import MIMEText
 import time
-from urllib.parse import urlencode
-import os
-
-SUPABASE_URL = "https://wequqsbvhydvugifevhm.supabase.co"
-BASE_URL = os.getenv("APP_URL", "http://localhost:8501")
-
-# =========================
-# 🔵 GOOGLE LOGIN BUTTON
-# =========================
-def google_login_button():
-    url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to={BASE_URL}&flow_type=pkce"
-
-    st.markdown(f"""
-    <a href="{url}">
-    <div style="
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        gap:10px;
-        border:1px solid #ddd;
-        padding:10px;
-        border-radius:8px;
-        background:white;
-        cursor:pointer;">
-        <img src="https://developers.google.com/identity/images/g-logo.png" width="20"/>
-        <span>Continue with Google</span>
-    </div>
-    </a>
-    """, unsafe_allow_html=True)
-
-# =========================
-# 🔵 HANDLE GOOGLE LOGIN
-# =========================
-def handle_google_login(supabase):
-    try:
-        # 🔥 force JS execution
-        extract_token()
-
-        # 🔥 read token from query
-        token = st.query_params.get("token")
-
-        if token:
-            user = supabase.auth.get_user(token)
-
-            if user and user.user:
-                email = user.user.email
-
-                result = supabase.table("users").select("*").eq("email", email).execute()
-
-                if not result.data:
-                    supabase.table("users").insert({
-                        "email": email,
-                        "password": "google_oauth",
-                        "first_name": user.user.user_metadata.get("full_name", ""),
-                        "last_name": ""
-                    }).execute()
-
-                st.session_state.logged_in = True
-                st.session_state.username = email
-
-                # ✅ clean URL
-                st.query_params.clear()
-
-                st.rerun()
-
-    except Exception as e:
-        pass
-
-# =========================
-# 📧 ADD TOKEN EXTRACTOR
-# =========================
-def extract_token():
-    import streamlit.components.v1 as components
-
-    components.html("""
-    <script>
-    const hash = window.location.hash;
-
-    if (hash && hash.includes("access_token")) {
-        const params = new URLSearchParams(hash.substring(1));
-        const token = params.get("access_token");
-
-        if (token) {
-            window.location.href = window.location.origin + window.location.pathname + "?token=" + token;
-        }
-    }
-    </script>
-    """, height=0)
-
-
 
 # =========================
 # 📧 SEND OTP EMAIL
 # =========================
 def send_otp_email(to_email, otp):
+
     sender = st.secrets["EMAIL_ADDRESS"]
     password = st.secrets["EMAIL_PASSWORD"]
 
@@ -124,29 +35,15 @@ def send_otp_email(to_email, otp):
 # 📝 SIGNUP
 # =========================
 def signup(supabase):
-    st.title("📝 Create Account")
+    st.title("📝 Sign Up")
 
-    email = st.text_input("Email")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        first_name = st.text_input("First Name")
-    with col2:
-        last_name = st.text_input("Last Name")
-
-    show_password = st.checkbox("Show Password")
-
-    password = st.text_input("Password", type="default" if show_password else "password")
-    confirm_password = st.text_input("Confirm Password", type="default" if show_password else "password")
+    email = st.text_input("Email", key="signup_email")
+    password = st.text_input("Password", type="password", key="signup_password")
 
     if st.button("Create Account"):
 
-        if not email or not password or not confirm_password or not first_name:
-            st.warning("Please fill all required fields")
-            return
-
-        if password != confirm_password:
-            st.error("Passwords do not match ❌")
+        if not email or not password:
+            st.warning("Please fill all fields")
             return
 
         if not is_strong_password(password):
@@ -161,11 +58,10 @@ def signup(supabase):
 
         st.session_state.temp_email = email
         st.session_state.temp_password = hash_password(password)
-        st.session_state.first_name = first_name
-        st.session_state.last_name = last_name
 
         otp = str(random.randint(100000, 999999))
         st.session_state.otp = otp
+        st.session_state.otp_expiry = time.time() + 600
 
         send_otp_email(email, otp)
 
@@ -182,27 +78,50 @@ def verify_otp(supabase):
 
     user_otp = st.text_input("Enter OTP")
 
-    if st.button("Verify OTP"):
-        if user_otp == st.session_state.get("otp"):
+    remaining = int(st.session_state.get("otp_expiry", 0) - time.time())
 
-            supabase.table("users").insert({
-                "email": st.session_state.temp_email,
-                "password": st.session_state.temp_password,
-                "first_name": st.session_state.first_name,
-                "last_name": st.session_state.last_name
-            }).execute()
+    if remaining > 0:
+        st.info(f"⏳ Expires in {remaining}s")
+    else:
+        st.error("OTP expired ❌")
 
-            st.session_state.logged_in = True
-            st.session_state.username = st.session_state.temp_email
-            st.session_state.show_otp = False
+    col1, col2 = st.columns(2)
 
+    with col1:
+        if st.button("Verify OTP"):
+
+            if time.time() > st.session_state.get("otp_expiry", 0):
+                st.error("OTP expired")
+                return
+
+            if user_otp == st.session_state.get("otp"):
+
+                supabase.table("users").insert({
+                    "email": st.session_state.temp_email,
+                    "password": st.session_state.temp_password
+                }).execute()
+
+                st.session_state.logged_in = True
+                st.session_state.username = st.session_state.temp_email
+                st.session_state.show_otp = False
+
+                st.success("Account created ✅")
+                st.rerun()
+            else:
+                st.error("Invalid OTP ❌")
+
+    with col2:
+        if st.button("Resend OTP"):
+            otp = str(random.randint(100000, 999999))
+            st.session_state.otp = otp
+            st.session_state.otp_expiry = time.time() + 600
+            send_otp_email(st.session_state.temp_email, otp)
+            st.success("OTP resent 📧")
             st.rerun()
-        else:
-            st.error("Invalid OTP ❌")
 
 
 # =========================
-# 🔑 RESET PASSWORD REQUEST
+# 🔑 RESET REQUEST
 # =========================
 def reset_password_request(supabase):
     st.title("🔑 Reset Password")
@@ -221,6 +140,7 @@ def reset_password_request(supabase):
 
         st.session_state.reset_email = email
         st.session_state.reset_otp = otp
+        st.session_state.reset_expiry = time.time() + 600
         st.session_state.show_reset_otp = True
 
         send_otp_email(email, otp)
@@ -230,7 +150,7 @@ def reset_password_request(supabase):
 
 
 # =========================
-# 🔐 RESET PASSWORD CONFIRM
+# 🔐 RESET CONFIRM
 # =========================
 def reset_password_confirm(supabase):
     st.title("🔐 Reset Password")
@@ -239,29 +159,65 @@ def reset_password_confirm(supabase):
     new_pass = st.text_input("New Password", type="password")
     confirm_pass = st.text_input("Confirm Password", type="password")
 
-    if st.button("Update Password"):
+    remaining = int(st.session_state.get("reset_expiry", 0) - time.time())
 
-        if otp != st.session_state.get("reset_otp"):
-            st.error("Invalid OTP ❌")
-            return
+    if remaining > 0:
+        st.info(f"⏳ Expires in {remaining}s")
+    else:
+        st.error("OTP expired ❌")
 
-        if new_pass != confirm_pass:
-            st.error("Passwords do not match ❌")
-            return
+    col1, col2 = st.columns(2)
 
-        if not is_strong_password(new_pass):
-            st.warning("Weak password")
-            return
+    with col1:
+        if st.button("Update Password"):
 
-        hashed = hash_password(new_pass)
+            if time.time() > st.session_state.get("reset_expiry", 0):
+                st.error("OTP expired")
+                return
 
-        supabase.table("users").update({
-            "password": hashed
-        }).eq("email", st.session_state.reset_email).execute()
+            if otp != st.session_state.get("reset_otp"):
+                st.error("Invalid OTP ❌")
+                return
 
-        st.session_state.show_reset_otp = False
-        st.success("Password updated ✅")
-        st.rerun()
+            if new_pass != confirm_pass:
+                st.error("Passwords do not match ❌")
+                return
+
+            if not is_strong_password(new_pass):
+                st.warning("Weak password")
+                return
+
+            hashed = hash_password(new_pass)
+
+            supabase.table("users").update({
+                "password": hashed
+            }).eq("email", st.session_state.reset_email).execute()
+
+            # ✅ Login user automatically
+            st.session_state.logged_in = True
+            st.session_state.username = st.session_state.reset_email
+
+            # ✅ Clear reset flow
+            # ✅ Auto login after reset
+            st.session_state.logged_in = True
+            st.session_state.username = st.session_state.reset_email
+
+            # ✅ Clear reset state
+            st.session_state.show_reset_otp = False
+            st.session_state.pop("reset_otp", None)
+            st.session_state.pop("reset_expiry", None)
+
+            st.success("Password updated & logged in ✅")
+            st.rerun()
+
+    with col2:
+        if st.button("Resend OTP"):
+            otp = str(random.randint(100000, 999999))
+            st.session_state.reset_otp = otp
+            st.session_state.reset_expiry = time.time() + 600
+            send_otp_email(st.session_state.reset_email, otp)
+            st.success("OTP resent 📧")
+            st.rerun()
 
 
 # =========================
@@ -270,14 +226,8 @@ def reset_password_confirm(supabase):
 def login(supabase):
     st.title("🔐 Login")
 
-    google_login_button()
-
-    st.divider()
-
-    email = st.text_input("Email")
-    show_password = st.checkbox("Show Password")
-
-    password = st.text_input("Password", type="default" if show_password else "password")
+    email = st.text_input("Email", key="login_email")
+    password = st.text_input("Password", type="password", key="login_password")
 
     if st.button("Login"):
 
@@ -289,6 +239,7 @@ def login(supabase):
             if verify_password(password, stored):
                 st.session_state.logged_in = True
                 st.session_state.username = email
+                st.success("Login successful ✅")
                 st.rerun()
             else:
                 st.error("Wrong password ❌")
