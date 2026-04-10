@@ -1,47 +1,56 @@
 import streamlit as st
-from auth import login, logout
+from supabase_client import supabase
+from auth import login
+from dashboard import dashboard
+from chat import chat_ui
 
-# -------------------------------
-# ⚙️ PAGE CONFIG
-# -------------------------------
-st.set_page_config(
-    page_title="AI DBA Assistant",
-    page_icon="🤖",
-    layout="wide"
+st.set_page_config(page_title="AI DBA Assistant", layout="wide")
+
+# ---------------------------
+# SESSION INIT
+# ---------------------------
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+# ---------------------------
+# TOKEN HANDLING (SECURE)
+# ---------------------------
+query_params = st.query_params
+
+if "token" in query_params:
+    token = query_params["token"]
+
+    try:
+        user = supabase.auth.get_user(token)
+        if user:
+            st.session_state.user = user.user
+            st.query_params.clear()  # remove token from URL
+    except:
+        st.error("Invalid session")
+
+# ---------------------------
+# SIDEBAR
+# ---------------------------
+menu = st.sidebar.selectbox(
+    "Select",
+    ["Login", "Dashboard", "AI Chat"]
 )
 
-# -------------------------------
-# 🔐 AUTH CHECK
-# -------------------------------
-if not login():
-    st.stop()   # ⛔ Stop app until logged in
+# ---------------------------
+# ROUTING
+# ---------------------------
+if st.session_state.user:
+    st.sidebar.success(f"👤 {st.session_state.user.email}")
 
+    if st.sidebar.button("Logout"):
+        st.session_state.user = None
+        st.rerun()
 
-# -------------------------------
-# 🎉 MAIN APP UI
-# -------------------------------
-st.title("🤖 AI DBA Assistant")
+    if menu == "Dashboard":
+        dashboard()
 
-st.success("✅ You are logged in!")
+    elif menu == "AI Chat":
+        chat_ui()
 
-# Sidebar
-with st.sidebar:
-    st.markdown("### 👤 User Panel")
-    st.write("Logged in successfully")
-
-    if st.button("🚪 Logout"):
-        logout()
-
-
-# -------------------------------
-# 💬 CHAT UI (BASIC)
-# -------------------------------
-st.markdown("### 💬 Ask your database question")
-
-user_input = st.text_input("Type your question...")
-
-if user_input:
-    st.write("🤖 AI Response:")
-    st.info(f"You asked: {user_input}")
-
-    # (Later we connect OpenAI here)
+else:
+    login()
