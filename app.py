@@ -3,14 +3,6 @@ from openai import OpenAI
 from supabase import create_client
 
 from auth import login
-#from auth import (
- #   login,
- #   signup,
-#    verify_otp,
- #   reset_password_request,
- #   reset_password_confirm
-#)
-
 from analyze import analyze_page
 from history import history_page
 from admin import admin_page
@@ -31,34 +23,27 @@ supabase = create_client(
 )
 
 # =========================
-# 🔥 AUTO LOGIN FROM REACT TOKEN (FINAL FIX)
+# 🔥 AUTO LOGIN FROM REACT TOKEN
 # =========================
 query_params = st.query_params
 token = query_params.get("token")
 
-# ✅ Fix: handle list
+# handle list case
 if isinstance(token, list):
     token = token[0]
 
-# 🔍 DEBUG (remove later if needed)
-# st.write("TOKEN DEBUG:", token)
-
 if token:
     try:
-        # ✅ Correct Supabase call
         user = supabase.auth.get_user(jwt=token)
-
-        # st.write("USER DEBUG:", user)
 
         if user and user.user:
             st.session_state.logged_in = True
             st.session_state.username = user.user.email
 
-            # ✅ Clean URL
+            # clean URL after login
             st.query_params.clear()
 
             st.success("Auto Login Success ✅")
-
             st.rerun()
 
     except Exception as e:
@@ -84,26 +69,15 @@ st.sidebar.markdown("## AI DBA Assistant")
 st.sidebar.markdown("---")
 
 # =========================
-# AUTH FLOW
+# AUTH FLOW (FIXED ✅)
 # =========================
 if not st.session_state.logged_in:
 
-    menu = st.sidebar.selectbox("Select", ["Login", "Sign Up", "Reset Password"])
+    # ✅ ONLY LOGIN (removed broken features)
+    menu = st.sidebar.selectbox("Select", ["Login"])
 
-    if st.session_state.get("show_otp"):
-        verify_otp(supabase)
-
-    elif st.session_state.get("show_reset_otp"):
-        reset_password_confirm(supabase)
-
-    elif menu == "Login":
+    if menu == "Login":
         login(supabase)
-
-    elif menu == "Sign Up":
-        signup(supabase)
-
-    elif menu == "Reset Password":
-        reset_password_request(supabase)
 
 # =========================
 # MAIN APP
