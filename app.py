@@ -2,13 +2,14 @@ import streamlit as st
 from openai import OpenAI
 from supabase import create_client
 
-from auth import (
-    login,
-    signup,
-    verify_otp,
-    reset_password_request,
-    reset_password_confirm
-)
+from auth import login
+#from auth import (
+ #   login,
+ #   signup,
+#    verify_otp,
+ #   reset_password_request,
+ #   reset_password_confirm
+#)
 
 from analyze import analyze_page
 from history import history_page
