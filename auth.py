@@ -8,13 +8,13 @@ def login(supabase):
     st.title("🔐 Login")
 
     # ----------------------------
-    # 🔵 GOOGLE LOGIN BUTTON
+    # 🔵 GOOGLE LOGIN
     # ----------------------------
     st.markdown("### Continue with Google")
 
     st.markdown(
         """
-        <a href="https://ai-auth-frontend-nine.vercel.app" target="_self">
+        <a href="https://ai-auth-frontend-nine.vercel.app">
             <button style="
                 width: 100%;
                 padding: 12px;
@@ -33,37 +33,66 @@ def login(supabase):
     st.markdown("---")
 
     # ----------------------------
-    # 📧 EMAIL LOGIN
+    # 📧 EMAIL LOGIN (SUPABASE AUTH)
     # ----------------------------
     st.markdown("### Or login with Email")
 
-    email = st.text_input("Email", key="login_email")
-    password = st.text_input("Password", type="password", key="login_password")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
 
     if st.button("Login"):
         try:
-            result = supabase.table("users").select("*").eq("email", email).execute()
+            response = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
 
-            if result.data:
-                stored_password = result.data[0]["password"]
+            if response.user:
+                st.session_state.logged_in = True
+                st.session_state.username = response.user.email
 
-                if verify_password(password, stored_password):
-                    st.session_state.logged_in = True
-                    st.session_state.username = email
-                    st.success("Login successful ✅")
-                    st.rerun()
-                else:
-                    st.error("Wrong password ❌")
-            else:
-                st.error("User not found ❌")
+                st.success("Login successful ✅")
+                st.rerun()
 
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error("Invalid email or password ❌")
 
+    st.markdown("---")
 
-# ============================
-# 🔑 PASSWORD VERIFY FUNCTION
-# ============================
-def verify_password(input_password, stored_password):
-    # Simple compare (you can upgrade to hashing later)
-    return input_password == stored_password
+    # ----------------------------
+    # 🆕 SIGNUP (SUPABASE AUTH)
+    # ----------------------------
+    st.markdown("### New user? Sign Up")
+
+    new_email = st.text_input("New Email", key="signup_email")
+    new_password = st.text_input("New Password", type="password", key="signup_password")
+
+    if st.button("Sign Up"):
+        try:
+            response = supabase.auth.sign_up({
+                "email": new_email,
+                "password": new_password
+            })
+
+            st.success("Signup successful 🎉 Please login now")
+
+        except Exception as e:
+            st.error("Signup failed ❌")
+
+    st.markdown("---")
+
+    # ----------------------------
+    # 🔁 RESET PASSWORD
+    # ----------------------------
+    st.markdown("### Forgot Password?")
+
+    reset_email = st.text_input("Enter your email", key="reset_email")
+
+    if st.button("Send Reset Link"):
+        try:
+            supabase.auth.reset_password_email(reset_email)
+
+            st.success("Password reset email sent 📧")
+
+        except Exception as e:
+            st.error("Failed to send reset email ❌")
