@@ -23,7 +23,8 @@ def google_login():
         }
     })
 
-    return res["url"]
+    # ✅ FIX HERE
+    return res.url
 
 
 # ==============================
