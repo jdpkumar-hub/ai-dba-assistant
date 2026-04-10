@@ -1,79 +1,76 @@
 import streamlit as st
-from supabase_client import supabase
+from supabase import create_client
 
-# =========================
-# GOOGLE LOGIN
-# =========================
-def google_login():
-    res = supabase.auth.sign_in_with_oauth({
-        "provider": "google",
-        "options": {
-            "redirect_to": "https://ai-oracle-assistant.streamlit.app"
-        }
-    })
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-    return res.url
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-# =========================
-# SESSION HANDLER
-# =========================
-def handle_session():
-    session = supabase.auth.get_session()
+# -------------------------------
+# 🔐 HANDLE LOGIN RESPONSE
+# -------------------------------
+def handle_auth():
+    query_params = st.query_params
 
-    if session and session.session:
-        st.session_state["user"] = session.session.user
+    if "access_token" in query_params:
         st.session_state["logged_in"] = True
+        st.session_state["access_token"] = query_params["access_token"]
+
+        # Clean URL (PRO UX 🔥)
+        st.query_params.clear()
+
+        st.success("✅ Login successful!")
+        st.rerun()
+
+
+# -------------------------------
+# 🔗 GOOGLE LOGIN URL
+# -------------------------------
+def google_login():
+    try:
+        res = supabase.auth.sign_in_with_oauth({
+            "provider": "google",
+            "options": {
+                "redirect_to": "https://ai-oracle-assistant.streamlit.app"
+            }
+        })
+
+        return res.url
+
+    except Exception as e:
+        st.error(f"Login error: {e}")
+        return None
+
+
+# -------------------------------
+# 🎨 LOGIN UI
+# -------------------------------
+def login():
+    st.title("🔐 Login")
+
+    handle_auth()  # 👈 VERY IMPORTANT
+
+    if st.session_state.get("logged_in"):
         return True
+
+    st.markdown("### Continue with Google")
+
+    if st.button("🔵 Continue with Google"):
+        url = google_login()
+
+        if url:
+            st.markdown(
+                f'<meta http-equiv="refresh" content="0; url={url}">',
+                unsafe_allow_html=True
+            )
 
     return False
 
 
-# =========================
-# LOGIN UI
-# =========================
-def login():
-
-    st.markdown("## 🔐 Login")
-
-    if "logged_in" not in st.session_state:
-        st.session_state["logged_in"] = False
-
-    # Already logged in
-    if handle_session():
-        st.success("✅ Logged in")
-        return
-
-    # Login button
-    if st.button("🔵 Continue with Google"):
-        url = google_login()
-        st.markdown(f"[👉 Click to Login]({url})")
-
-
-# =========================
-# REQUIRE LOGIN
-# =========================
-def require_login():
-    if not st.session_state.get("logged_in"):
-        login()
-        st.stop()
-
-
-# =========================
-# LOGOUT
-# =========================
+# -------------------------------
+# 🚪 LOGOUT
+# -------------------------------
 def logout():
-    supabase.auth.sign_out()
     st.session_state.clear()
     st.rerun()
-
-
-# =========================
-# USER SIDEBAR
-# =========================
-def show_user():
-    if "user" in st.session_state:
-        st.sidebar.success(f"👤 {st.session_state['user'].email}")
-
-        if st.sidebar.button("Logout"):
-            logout()
