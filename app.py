@@ -21,13 +21,6 @@ st.markdown("""
     padding-bottom: 1rem;
 }
 
-.left-panel {
-    background: linear-gradient(135deg, #e0ecff, #f0f6ff);
-    padding: 40px;
-    border-radius: 20px;
-    min-height: 500px;
-}
-
 .card {
     background-color: white;
     padding: 25px;
