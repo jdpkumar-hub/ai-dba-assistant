@@ -22,6 +22,27 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------
+# 🔐 HANDLE OAUTH CODE (CRITICAL FIX)
+# -------------------------------
+params = st.query_params
+
+if "code" in params:
+    code = params["code"]
+
+    try:
+        # 🔥 Exchange code for session
+        supabase.auth.exchange_code_for_session({"auth_code": code})
+
+        # Clean URL after login
+        st.query_params.clear()
+
+        st.success("✅ Login successful")
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"Login failed: {e}")
+        
+# -------------------------------
 # 🔐 AUTH CHECK (CORRECT WAY)
 # -------------------------------
 user = get_user()
