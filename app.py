@@ -97,7 +97,7 @@ if not user:
 
                     # 🚀 Direct redirect (NO intermediate page)
                     st.markdown(f"""
-                    <meta http-equiv="refresh" content="0; url={response['url']}">
+                    <meta http-equiv="refresh" content="0; url={response.url}">
                     """, unsafe_allow_html=True)
 
                 except Exception as e:
