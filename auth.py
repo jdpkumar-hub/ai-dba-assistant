@@ -24,15 +24,17 @@ def login():
             "options": {
                 "redirect_to": REDIRECT_URL,
                 "query_params": {
-                    "prompt": "consent"  # 👈 always show Google screen
+                    "prompt": "consent"
                 }
             }
         })
 
-        auth_url = res.get("url")
+        # ✅ FIX HERE
+        auth_url = res.url
 
         if auth_url:
             st.markdown(f"[👉 Click here if not redirected]({auth_url})")
+
             st.markdown(
                 f"""
                 <script>
@@ -41,6 +43,7 @@ def login():
                 """,
                 unsafe_allow_html=True
             )
+
             return False
 
     return False
