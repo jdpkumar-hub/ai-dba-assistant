@@ -90,7 +90,7 @@ if not user:
         # LOGIN TAB
         with tab1:
             st.markdown("### 🔐 Login")
-                if st.button("🔵 Continue with Google"):
+            if st.button("🔵 Continue with Google"):
                     try:
                     response = supabase.auth.sign_in_with_oauth({
                     "provider": "google",
