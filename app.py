@@ -78,7 +78,7 @@ if not user:
 
 #        st.markdown('</div>', unsafe_allow_html=True)
     with col1:
-        st.image("logo2.png", width=120)
+        st.image("logo2.png", width=220)
         st.markdown("## AI DBA Assistant")
         st.caption("🚀 Smart Oracle Optimization Platform")
 
@@ -91,7 +91,7 @@ if not user:
 }
 .feature:hover {
     background-color: #f5f7ff;
-    transform: translateX(5px);
+    transform: translateX(3px);
 }
 </style>
 """, unsafe_allow_html=True)
