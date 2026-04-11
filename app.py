@@ -82,10 +82,10 @@ if not user:
 
         st.markdown("""
 ### Features
-- ⚡ SQL Performance Tuning  
-- 📊 AWR Analysis  
-- 🤖 AI Recommendations  
-- 🚀 Real-time Insights  
+- ⚡ SQL Performance Tuning
+- 📊 AWR Analysis
+- 🤖 AI Recommendations
+- 🚀 Real-time Insights
 """)
 
         st.markdown('</div>', unsafe_allow_html=True)
@@ -176,14 +176,14 @@ elif page == "💬 AI Chat":
 
         st.markdown("""
 **Possible issues:**
-- Missing indexes  
-- Full table scans  
-- High CPU usage  
+- Missing indexes
+- Full table scans
+- High CPU usage
 
 💡 **Suggestion**
-- Add index  
-- Gather stats  
-- Optimize query  
+- Add index
+- Gather stats
+- Optimize query
 """)
 
 elif page == "📊 Reports":
