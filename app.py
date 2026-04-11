@@ -1,5 +1,5 @@
 import streamlit as st
-from auth import logout, get_user, supabase
+from auth import login, logout, get_user, supabase
 
 # -------------------------------
 # ⚙️ PAGE CONFIG
@@ -26,12 +26,11 @@ st.markdown("""
     padding: 25px;
     border-radius: 20px;
     box-shadow: 0px 8px 24px rgba(0,0,0,0.08);
-    max-width: 500px;
-    margin: auto;
 }
 
 .right-panel {
-    margin-top: 80px;
+    margin-left: -10px;
+    margin-top: 40px;
 }
 
 </style>
@@ -64,46 +63,35 @@ if not user:
 
     # -------- LEFT PANEL --------
     with col1:
-        st.image("logo2.png", width=120)
+        st.markdown('<div class="left-panel">', unsafe_allow_html=True)
+
+        st.image("logo.png", width=120)
         st.markdown("## AI DBA Assistant")
         st.caption("🚀 Smart Oracle Optimization Platform")
 
         st.markdown("""
-- ⚡ SQL Performance Tuning  
-- 📊 AWR Analysis  
-- 🤖 AI Recommendations  
-- 🚀 Real-time Insights  
+### Features
+- ⚡ SQL Performance Tuning
+- 📊 AWR Analysis
+- 🤖 AI Recommendations
+- 🚀 Real-time Insights
 """)
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # -------- RIGHT PANEL --------
     with col2:
         st.markdown('<div class="right-panel">', unsafe_allow_html=True)
+        st.write("")
         st.markdown('<div class="card">', unsafe_allow_html=True)
 
         tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
 
-        # ---------------- LOGIN ----------------
+        # LOGIN TAB
         with tab1:
-            st.markdown("### 🔐 Login")
+            login()
 
-            if st.button("🔵 Continue with Google"):
-                try:
-                    response = supabase.auth.sign_in_with_oauth({
-                        "provider": "google",
-                        "options": {
-                            "redirect_to": "https://ai-oracle-assistant.streamlit.app"
-                        }
-                    })
-
-                    # 🚀 Direct redirect (NO intermediate page)
-                    st.markdown(f"""
-                    <meta http-equiv="refresh" content="0; url={response.url}">
-                    """, unsafe_allow_html=True)
-
-                except Exception as e:
-                    st.error(f"Google login failed: {e}")
-
-        # ---------------- SIGNUP ----------------
+        # SIGNUP TAB
         with tab2:
             email = st.text_input("Email", key="signup_email")
             password = st.text_input("Password", type="password", key="signup_pass")
@@ -118,7 +106,7 @@ if not user:
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-        # ---------------- RESET ----------------
+        # RESET TAB
         with tab3:
             email = st.text_input("Enter your email", key="reset_email")
 
@@ -138,11 +126,12 @@ if not user:
 # 🎯 MAIN APP (AFTER LOGIN)
 # =========================================================
 
+# Sidebar
 with st.sidebar:
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.image("logo2.png", width=80)
+        st.image("logo.png", width=60)
 
     with col2:
         st.markdown("### AI DBA")
