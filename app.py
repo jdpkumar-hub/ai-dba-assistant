@@ -156,30 +156,105 @@ if page == "🏠 Dashboard":
     st.markdown("## 🏠 Dashboard")
     st.info("Welcome to AI DBA Assistant 🚀")
 
+#elif page == "💬 AI Chat":
+#    st.markdown("## 💬 AI DBA Chat")
+#
+#    question = st.text_input("Ask Oracle question...")
+#
+#    if question:
+#        with st.spinner("Analyzing..."):
+#            try:
+#                response = client.chat.completions.create(
+#                    model="gpt-4o-mini",
+#                    messages=[
+#                        {"role": "system", "content": "You are an Oracle DBA expert."},
+#                        {"role": "user", "content": question}
+#                    ]
+#                )
+#
+#                answer = response.choices[0].message.content
+#
+#                st.markdown("### 🤖 AI Response")
+#                st.write(answer)
+#
+#            except Exception as e:
+#                st.error(f"AI Error: {e}")
+#===============================================
+AI CHAT START
+#===============================================
 elif page == "💬 AI Chat":
-    st.markdown("## 💬 AI DBA Chat")
+    st.markdown("## 💬 AI DBA Assistant")
 
-    question = st.text_input("Ask Oracle question...")
+    tab1, tab2 = st.tabs(["💬 Ask AI", "⚡ SQL Analyzer"])
 
-    if question:
-        with st.spinner("Analyzing..."):
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are an Oracle DBA expert."},
-                        {"role": "user", "content": question}
-                    ]
-                )
+    # =========================
+    # 💬 CHAT TAB
+    # =========================
+    with tab1:
+        question = st.text_input("Ask Oracle DBA question...")
 
-                answer = response.choices[0].message.content
+        if question:
+            with st.spinner("Analyzing..."):
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": "You are an expert Oracle DBA helping with performance tuning."},
+                            {"role": "user", "content": question}
+                        ]
+                    )
 
-                st.markdown("### 🤖 AI Response")
-                st.write(answer)
+                    answer = response.choices[0].message.content
 
-            except Exception as e:
-                st.error(f"AI Error: {e}")
+                    st.markdown("### 🤖 AI Response")
+                    st.write(answer)
 
+                except Exception as e:
+                    st.error(f"AI Error: {e}")
+
+    # =========================
+    # ⚡ SQL ANALYZER TAB
+    # =========================
+    with tab2:
+        st.markdown("### ⚡ SQL Performance Analyzer")
+
+        sql_query = st.text_area("Paste your SQL query here", height=150)
+
+        if st.button("Analyze SQL"):
+            if sql_query:
+                with st.spinner("Analyzing SQL..."):
+                    try:
+                        prompt = f"""
+Analyze this Oracle SQL query and provide:
+
+1. Issues in query
+2. Performance problems
+3. Index suggestions
+4. Optimized query rewrite
+
+SQL:
+{sql_query}
+"""
+
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[
+                                {"role": "system", "content": "You are an Oracle SQL tuning expert."},
+                                {"role": "user", "content": prompt}
+                            ]
+                        )
+
+                        result = response.choices[0].message.content
+
+                        st.markdown("## 🔍 SQL Analysis Report")
+                        st.write(result)
+
+                    except Exception as e:
+                        st.error(f"AI Error: {e}")
+
+#===============================================
+AI CHAT END
+#===============================================
 elif page == "📊 Reports":
     st.markdown("## 📊 Reports")
     st.info("Reports module coming soon")
