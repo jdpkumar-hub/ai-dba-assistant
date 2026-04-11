@@ -150,7 +150,7 @@ elif page == "💬 AI Chat":
                         "question": question,
                         "response": answer
                     }).execute()
-                except Exception as e:
+                except Exception:
                     st.warning("History not saved")
 
     # ---------------- SQL ANALYZER ----------------
@@ -180,7 +180,7 @@ elif page == "💬 AI Chat":
                     except:
                         st.warning("History not saved")
 
-    # ---------------- AWR ANALYZER (FIXED) ----------------
+    # ---------------- AWR ANALYZER ----------------
     with tab3:
         st.markdown("### 📊 AWR Report Analyzer")
 
@@ -227,9 +227,9 @@ AWR Report:
                         except:
                             st.warning("History not saved")
 
-                                            except Exception as e:
-                                                st.error(f"AWR Error: {e}")
-# ---------------- OTHER PAGES ----------------
+                    except Exception as e:
+                        st.error(f"AWR Error: {e}")
+
 elif page == "📜 History":
     st.title("Query History")
 
@@ -243,7 +243,7 @@ elif page == "📜 History":
         st.markdown(f"**Q:** {row['question']}")
         st.markdown(f"**A:** {row['response']}")
         st.divider()
- # ---------------- OTHER PAGES ----------------       
+
 elif page == "📊 Reports":
     st.title("Reports")
 
