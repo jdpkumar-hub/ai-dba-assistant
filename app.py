@@ -114,7 +114,7 @@ if not user:
 # ================= MAIN =================
 with st.sidebar:
     st.image("logo.png", width=60)
-    page = st.radio("", ["🏠 Dashboard", "💬 AI Chat", "📊 Reports", "⚙️ Settings"])
+    page = st.radio("", ["🏠 Dashboard", "💬 AI Chat", "📊 Reports", "📜 History", "⚙️ Settings"])
     st.success(user.email)
     logout()
 
@@ -140,7 +140,18 @@ elif page == "💬 AI Chat":
                         {"role": "user", "content": question}
                     ]
                 )
-                st.write(response.choices[0].message.content)
+                answer = response.choices[0].message.content
+                st.write(answer)
+
+                # 💾 SAVE TO HISTORY
+                try:
+                    supabase.table("query_history").insert({
+                        "user_email": user.email,
+                        "question": question,
+                        "response": answer
+                    }).execute()
+                except Exception as e:
+                    st.warning("History not saved")
 
     # ---------------- SQL ANALYZER ----------------
     with tab2:
@@ -156,7 +167,18 @@ elif page == "💬 AI Chat":
                             {"role": "user", "content": sql}
                         ]
                     )
-                    st.write(response.choices[0].message.content)
+                    answer = response.choices[0].message.content
+                    st.write(answer)
+
+                    # 💾 SAVE SQL ANALYSIS
+                    try:
+                        supabase.table("query_history").insert({
+                            "user_email": user.email,
+                            "question": sql,
+                            "response": answer
+                        }).execute()
+                    except:
+                        st.warning("History not saved")
 
     # ---------------- AWR ANALYZER (FIXED) ----------------
     with tab3:
@@ -195,10 +217,33 @@ AWR Report:
                         st.markdown("## 📊 AWR Analysis Report")
                         st.write(result)
 
-                    except Exception as e:
-                        st.error(f"AWR Error: {e}")
+                        # 💾 SAVE AWR ANALYSIS
+                        try:
+                            supabase.table("query_history").insert({
+                                "user_email": user.email,
+                                "question": "AWR Report",
+                                "response": result
+                            }).execute()
+                        except:
+                            st.warning("History not saved")
 
+                                            except Exception as e:
+                                                st.error(f"AWR Error: {e}")
 # ---------------- OTHER PAGES ----------------
+elif page == "📜 History":
+    st.title("Query History")
+
+    data = supabase.table("query_history")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .order("created_at", desc=True)\
+        .execute()
+
+    for row in data.data:
+        st.markdown(f"**Q:** {row['question']}")
+        st.markdown(f"**A:** {row['response']}")
+        st.divider()
+ # ---------------- OTHER PAGES ----------------       
 elif page == "📊 Reports":
     st.title("Reports")
 
