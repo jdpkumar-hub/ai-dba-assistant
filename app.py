@@ -91,7 +91,7 @@ if not user:
                     response = supabase.auth.sign_in_with_oauth({
                         "provider": "google",
                         "options": {
-                            "redirect_to": "http://localhost:8501"
+                            "redirect_to": "https://ai-oracle-assistant.streamlit.app"
                         }
                     })
 
