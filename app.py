@@ -146,16 +146,47 @@ elif page == "💬 AI Chat":
         st.markdown("### 🔍 Analysis")
 
         st.markdown("""
-**Possible issues:**
-- Missing indexes  
-- Full table scans  
-- High CPU usage  
+<style>
 
-💡 **Suggestion**
-- Add index  
-- Gather stats  
-- Optimize query  
-""")
+/* App background */
+.main {
+    background-color: #f3f6fb;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #f8fafc;
+}
+
+/* LEFT PANEL (brand area) */
+.left-panel {
+    background: linear-gradient(135deg, #e0ecff, #f0f6ff);
+    padding: 40px;
+    border-radius: 20px;
+    height: 100%;
+}
+
+/* RIGHT PANEL (card) */
+.card {
+    background-color: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0px 8px 24px rgba(0,0,0,0.08);
+}
+
+/* Move right panel slightly left */
+.right-panel {
+    margin-left: -40px;
+}
+
+/* Remove extra padding */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 elif page == "📊 Reports":
     st.markdown("## 📊 Reports")
