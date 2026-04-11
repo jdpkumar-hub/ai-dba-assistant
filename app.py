@@ -77,12 +77,12 @@ if not user:
 #""")
 
 #        st.markdown('</div>', unsafe_allow_html=True)
-with col1:
-    st.image("logo2.png", width=120)
-    st.markdown("## AI DBA Assistant")
-    st.caption("🚀 Smart Oracle Optimization Platform")
+    with col1:
+        st.image("logo2.png", width=120)
+        st.markdown("## AI DBA Assistant")
+        st.caption("🚀 Smart Oracle Optimization Platform")
 
-    st.markdown("""
+        st.markdown("""
 <style>
 .feature {
     padding: 12px;
