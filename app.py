@@ -1,5 +1,5 @@
 import streamlit as st
-from auth import login, logout
+from auth import login, logout, get_user
 
 # -------------------------------
 # ⚙️ PAGE CONFIG
@@ -11,129 +11,82 @@ st.set_page_config(
 )
 
 # -------------------------------
-# 🔐 HANDLE TOKEN FROM URL (FIX LOOP)
-# -------------------------------
-params = st.query_params
-
-if "token" in params:
-    st.session_state["logged_in"] = True
-    st.session_state["token"] = params["token"]
-
-    # clean URL
-    st.query_params.clear()
-    st.rerun()
-
-# -------------------------------
-# 🔐 AUTH CHECK
-# -------------------------------
-if not st.session_state.get("logged_in"):
-    if not login():
-        st.stop()
-
-# -------------------------------
-# 🎨 CUSTOM UI
+# 🎨 CUSTOM STYLE
 # -------------------------------
 st.markdown("""
 <style>
-.main-title {
-    font-size: 28px;
-    font-weight: bold;
-}
-.card {
-    padding: 15px;
-    border-radius: 10px;
-    background-color: #f5f5f5;
+[data-testid="stSidebar"] {
+    background-color: #f8fafc;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------
-# 🧭 SIDEBAR (LEFT PANEL)
+# 🔐 AUTH CHECK (CORRECT WAY)
+# -------------------------------
+user = get_user()
+
+if not user:
+    login()
+    st.stop()
+
+# -------------------------------
+# 🎯 SIDEBAR (LEFT PANEL)
 # -------------------------------
 with st.sidebar:
-    st.image("logo.png", width=300)
+    col1, col2 = st.columns([1,2])
 
-    st.markdown("## AI DBA Assistant")
-    st.caption("Smart Oracle Optimization")
+    with col1:
+        st.image("logo.png", width=60)  # 👈 your logo
+
+    with col2:
+        st.markdown("### AI DBA")
+        st.caption("Smart Optimization")
 
     st.divider()
 
-    menu = st.radio(
-        "Navigation",
-        ["🏠 Dashboard", "💬 AI Chat", "📊 Reports", "⚙️ Settings"]
-    )
+    st.markdown("### Navigation")
+    page = st.radio("", ["🏠 Dashboard", "💬 AI Chat", "📊 Reports", "⚙️ Settings"])
 
     st.divider()
 
     st.markdown("### 👤 User")
-    st.success("Logged in")
+    st.success(f"Logged in as {user.email}")
 
-    if st.button("🚪 Logout"):
-        logout()
-
-# -------------------------------
-# 🏠 MAIN PANEL (RIGHT SIDE)
-# -------------------------------
-if menu == "🏠 Dashboard":
-    st.markdown('<div class="main-title">🚀 Dashboard</div>', unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.markdown('<div class="card">⚡ SQL Tuning</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="card">📊 Performance</div>', unsafe_allow_html=True)
-
-    with col3:
-        st.markdown('<div class="card">🤖 AI Insights</div>', unsafe_allow_html=True)
+    logout()
 
 # -------------------------------
-# 💬 CHAT PAGE
+# 🧠 MAIN CONTENT
 # -------------------------------
-elif menu == "💬 AI Chat":
-    st.markdown("### 💬 AI DBA Chat")
+if page == "💬 AI Chat":
 
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    st.markdown("## 💬 AI DBA Chat")
 
-    user_input = st.chat_input("Ask database question...")
+    question = st.text_input("Ask Oracle question...")
 
-    if user_input:
-        st.session_state.chat_history.append(("user", user_input))
+    if question:
+        st.markdown("### 🔍 Analysis")
 
-        response = f"""
-🔍 **Analysis**
-
-Possible issues:
-- Missing indexes
-- Full table scans
-- High CPU usage
+        st.markdown("""
+**Possible issues:**
+- Missing indexes  
+- Full table scans  
+- High CPU usage  
 
 💡 **Suggestion**
-- Add index
-- Gather stats
-- Optimize query
-"""
+- Add index  
+- Gather stats  
+- Optimize query  
+""")
 
-        st.session_state.chat_history.append(("ai", response))
+elif page == "🏠 Dashboard":
+    st.markdown("## 🏠 Dashboard")
+    st.info("Welcome to AI DBA Assistant 🚀")
 
-    for role, msg in st.session_state.chat_history:
-        if role == "user":
-            st.chat_message("user").write(msg)
-        else:
-            st.chat_message("assistant").write(msg)
+elif page == "📊 Reports":
+    st.markdown("## 📊 Reports")
+    st.info("Reports module coming soon")
 
-# -------------------------------
-# 📊 REPORTS
-# -------------------------------
-elif menu == "📊 Reports":
-    st.markdown("### 📊 Performance Reports")
-    st.info("Coming soon...")
-
-# -------------------------------
-# ⚙️ SETTINGS
-# -------------------------------
-elif menu == "⚙️ Settings":
-    st.markdown("### ⚙️ Settings")
-    st.info("Manage preferences here")
+elif page == "⚙️ Settings":
+    st.markdown("## ⚙️ Settings")
+    st.info("Settings panel")

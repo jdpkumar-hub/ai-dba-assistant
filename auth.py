@@ -1,45 +1,67 @@
 import streamlit as st
+from supabase import create_client
 
-def handle_auth():
-    params = st.query_params
+# -------------------------------
+# 🔑 CONFIG
+# -------------------------------
+SUPABASE_URL = "https://wequqsbvhdyvugifevhm.supabase.co"
+SUPABASE_KEY = "sb_publishable_ZOfGu0PLriJqtJLdmk6Bkg_mJ3HrURB"   # 👈 put your key
 
-    if "access_token" in params:
-        st.session_state["logged_in"] = True
-        st.session_state["access_token"] = params["access_token"]
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-        # Clean URL (PRO UX)
-        st.query_params.clear()
+REDIRECT_URL = "https://ai-oracle-assistant.streamlit.app"
 
-        st.success("✅ Login successful")
-        st.rerun()
-
-
+# -------------------------------
+# 🔐 LOGIN FUNCTION
+# -------------------------------
 def login():
-    handle_auth()
+    st.markdown("## 🔐 Login")
 
-    if st.session_state.get("logged_in"):
-        return True
+    if st.button("🔵 Continue with Google"):
 
-    st.title("🔐 Login")
+        res = supabase.auth.sign_in_with_oauth({
+            "provider": "google",
+            "options": {
+                "redirect_to": REDIRECT_URL,
+                "query_params": {
+                    "prompt": "consent"  # 👈 always show Google screen
+                }
+            }
+        })
 
-    # Redirect to your Vercel app
-    login_url = "https://ai-auth-frontend-nine.vercel.app"
+        auth_url = res.get("url")
 
-    st.markdown(f"""
-        <a href="{login_url}">
-            <button style="
-                padding:10px 20px;
-                border-radius:8px;
-                cursor:pointer;
-            ">
-                🔵 Continue with Google
-            </button>
-        </a>
-    """, unsafe_allow_html=True)
+        if auth_url:
+            st.markdown(f"[👉 Click here if not redirected]({auth_url})")
+            st.markdown(
+                f"""
+                <script>
+                window.location.href = "{auth_url}";
+                </script>
+                """,
+                unsafe_allow_html=True
+            )
+            return False
 
     return False
 
 
+# -------------------------------
+# 🔐 GET USER (REAL CHECK)
+# -------------------------------
+def get_user():
+    try:
+        res = supabase.auth.get_user()
+        return res.user if res else None
+    except:
+        return None
+
+
+# -------------------------------
+# 🚪 LOGOUT
+# -------------------------------
 def logout():
-    st.session_state.clear()
-    st.rerun()
+    if st.button("🚪 Logout"):
+        supabase.auth.sign_out()
+        st.session_state.clear()
+        st.rerun()
