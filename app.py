@@ -65,7 +65,7 @@ if not user:
     with col1:
         st.markdown('<div class="left-panel">', unsafe_allow_html=True)
 
-        st.image("logo.png", width=120)
+        st.image("logo2.png", width=220)
         st.markdown("## AI DBA Assistant")
         st.caption("🚀 Smart Oracle Optimization Platform")
 
