@@ -253,7 +253,7 @@ SQL:
                         st.error(f"AI Error: {e}")
 
 #===============================================
-AI CHAT END
+#AI CHAT END
 #===============================================
 elif page == "📊 Reports":
     st.markdown("## 📊 Reports")
