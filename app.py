@@ -19,7 +19,6 @@ st.set_page_config(
 # -------------------------------
 st.markdown("""
 <style>
-
 .block-container {
     padding-top: 1rem;
     padding-bottom: 1rem;
@@ -33,10 +32,18 @@ st.markdown("""
 }
 
 .right-panel {
-    margin-left: -10px;
     margin-top: 40px;
 }
 
+.feature {
+    padding: 12px;
+    border-radius: 12px;
+    transition: 0.3s;
+}
+.feature:hover {
+    background-color: #f5f7ff;
+    transform: translateX(3px);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -65,60 +72,29 @@ if not user:
 
     col1, col2 = st.columns([1, 3])
 
-    # -------- LEFT PANEL --------
- #   with col1:
-#        st.markdown('<div class="left-panel">', unsafe_allow_html=True)
-#       st.image("logo2.png", width=220)
-#        st.markdown("## AI DBA Assistant")
-#       st.caption("🚀 Smart Oracle Optimization Platform")
-
- #       st.markdown("""
-### Features
-#- ⚡ SQL Performance Tuning
-#- 📊 AWR Analysis
-#- 🤖 AI Recommendations
-#- 🚀 Real-time Insights
-#""")
-
-#        st.markdown('</div>', unsafe_allow_html=True)
+    # LEFT PANEL
     with col1:
         st.image("logo2.png", width=220)
         st.markdown("## AI DBA Assistant")
         st.caption("🚀 Smart Oracle Optimization Platform")
 
         st.markdown("""
-<style>
-.feature {
-    padding: 12px;
-    border-radius: 12px;
-    transition: 0.3s;
-}
-.feature:hover {
-    background-color: #f5f7ff;
-    transform: translateX(3px);
-}
-</style>
+<div class="feature">⚡ <b>SQL Performance Tuning</b><br><small>Optimize slow queries</small></div>
+<div class="feature">📊 <b>AWR Analysis</b><br><small>Analyze workload reports</small></div>
+<div class="feature">🤖 <b>AI Recommendations</b><br><small>Smart tuning suggestions</small></div>
+<div class="feature">🚀 <b>Real-time Insights</b><br><small>Live monitoring</small></div>
 """, unsafe_allow_html=True)
 
-    st.markdown("""
-<div class="feature">⚡ <b>SQL Performance Tuning</b><br><small>Optimize slow queries and execution plans</small></div>
-<div class="feature">📊 <b>AWR Analysis</b><br><small>Analyze database workload reports</small></div>
-<div class="feature">🤖 <b>AI Recommendations</b><br><small>Smart tuning suggestions using AI</small></div>
-<div class="feature">🚀 <b>Real-time Insights</b><br><small>Monitor database performance live</small></div>
-""", unsafe_allow_html=True)
-    # -------- RIGHT PANEL --------
+    # RIGHT PANEL
     with col2:
         st.markdown('<div class="right-panel">', unsafe_allow_html=True)
-        st.write("")
         st.markdown('<div class="card">', unsafe_allow_html=True)
 
         tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
 
-        # LOGIN TAB
         with tab1:
             login()
 
-        # SIGNUP TAB
         with tab2:
             email = st.text_input("Email", key="signup_email")
             password = st.text_input("Password", type="password", key="signup_pass")
@@ -133,14 +109,13 @@ if not user:
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-        # RESET TAB
         with tab3:
             email = st.text_input("Enter your email", key="reset_email")
 
             if st.button("Send Reset Link"):
                 try:
                     supabase.auth.reset_password_email(email)
-                    st.success("📧 Reset link sent to your email")
+                    st.success("📧 Reset link sent")
                 except Exception as e:
                     st.error(f"Error: {e}")
 
@@ -150,10 +125,9 @@ if not user:
     st.stop()
 
 # =========================================================
-# 🎯 MAIN APP (AFTER LOGIN)
+# 🎯 MAIN APP
 # =========================================================
 
-# Sidebar
 with st.sidebar:
     col1, col2 = st.columns([1, 2])
 
@@ -169,7 +143,6 @@ with st.sidebar:
     page = st.radio("", ["🏠 Dashboard", "💬 AI Chat", "📊 Reports", "⚙️ Settings"])
 
     st.divider()
-
     st.markdown("### 👤 User")
     st.success(user.email)
 
@@ -178,6 +151,7 @@ with st.sidebar:
 # -------------------------------
 # MAIN CONTENT
 # -------------------------------
+
 if page == "🏠 Dashboard":
     st.markdown("## 🏠 Dashboard")
     st.info("Welcome to AI DBA Assistant 🚀")
@@ -187,37 +161,9 @@ elif page == "💬 AI Chat":
 
     question = st.text_input("Ask Oracle question...")
 
-#    if question:
-#        st.markdown("### 🔍 Analysis")
-
-#        st.markdown("""
-#**Possible issues:**
-#- Missing indexes
-#- Full table scans
-#- High CPU usage
-
-#💡 **Suggestion**
-#- Add index
-#- Gather stats
-#- Optimize query
-#""")
-question = st.text_input("Ask Oracle question...")
-elif page == "💬 AI Chat":
-    st.markdown("## 💬 AI DBA Chat")
-
-    # ✅ DEFINE question FIRST
-    question = st.text_input("Ask Oracle question...")
-
-    # ✅ THEN use it
     if question:
         with st.spinner("Analyzing..."):
-
             try:
-                from openai import OpenAI
-                import os
-
-                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
