@@ -89,7 +89,25 @@ if not user:
 
         # LOGIN TAB
         with tab1:
-            login()
+            
+    st.markdown("### 🔐 Login")
+
+    if st.button("🔵 Continue with Google"):
+        try:
+            response = supabase.auth.sign_in_with_oauth({
+                "provider": "google",
+                "options": {
+                    "redirect_to": "http://localhost:8501"
+                }
+            })
+
+            # 🚀 Direct redirect (no extra page)
+            st.markdown(f"""
+            <meta http-equiv="refresh" content="0; url={response['url']}">
+            """, unsafe_allow_html=True)
+
+        except Exception as e:
+            st.error(f"Google login failed: {e}")
 
         # SIGNUP TAB
         with tab2:
