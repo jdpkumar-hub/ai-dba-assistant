@@ -50,15 +50,17 @@ user = get_user()
 # =========================================================
 if not user:
 
-    col1, col2 = st.columns([1, 1])
+    col1, col2, col3 = st.columns([1.2, 1, 0.3])
 
     # -------- LEFT PANEL --------
     with col1:
-        st.image("logo.png", width=220)
-        st.markdown("## AI DBA Assistant")
-        st.caption("🚀 Smart Oracle Optimization Platform")
+    st.markdown('<div class="left-panel">', unsafe_allow_html=True)
 
-        st.markdown("""
+    st.image("logo.png", width=120)
+    st.markdown("## AI DBA Assistant")
+    st.caption("🚀 Smart Oracle Optimization Platform")
+
+    st.markdown("""
 ### Features
 - ⚡ SQL Performance Tuning  
 - 📊 AWR Analysis  
@@ -66,12 +68,44 @@ if not user:
 - 🚀 Real-time Insights  
 """)
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
     # -------- RIGHT PANEL --------
     with col2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="right-panel">', unsafe_allow_html=True)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
 
-        tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
+    tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
 
+    with tab1:
+        login()
+
+    with tab2:
+        email = st.text_input("Email", key="signup_email")
+        password = st.text_input("Password", type="password", key="signup_pass")
+
+        if st.button("Create Account"):
+            try:
+                supabase.auth.sign_up({
+                    "email": email,
+                    "password": password
+                })
+                st.success("✅ Account created! Please login.")
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+    with tab3:
+        email = st.text_input("Enter your email", key="reset_email")
+
+        if st.button("Send Reset Link"):
+            try:
+                supabase.auth.reset_password_email(email)
+                st.success("📧 Reset link sent to your email")
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
         # ---------------- LOGIN TAB ----------------
         with tab1:
             login()   # 👈 YOUR GOOGLE LOGIN (UNCHANGED)
