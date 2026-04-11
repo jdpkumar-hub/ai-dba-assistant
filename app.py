@@ -59,7 +59,7 @@ user = get_user()
 # =========================================================
 if not user:
 
-    col1, col2 = st.columns([1.1, 1])
+    col1, col2 = st.columns([1, 3])
 
     # -------- LEFT PANEL --------
     with col1:
