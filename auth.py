@@ -74,33 +74,44 @@ def login():
 # -------------------------------
 # 🔵 GOOGLE LOGIN (FINAL FIX)
 # -------------------------------
-st.markdown("### Or login with Google")
+def login():
+    st.markdown("## 🔐 Login")
 
-if st.button("🔵 Continue with Google"):
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
 
-    try:
+    if st.button("Login"):
+        try:
+            res = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+
+            if res.user:
+                st.session_state.user = res.user
+                st.success("Login successful")
+                st.rerun()
+
+        except Exception as e:
+            st.error("Invalid credentials")
+
+    st.divider()
+
+    # Google Login
+    if st.button("🔵 Continue with Google"):
         res = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
-                "redirect_to": "https://ai-oracle-assistant.streamlit.app"
+                "redirect_to": REDIRECT_URL
             }
         })
 
-        if res and res.url:
-            st.write("Redirecting to Google...")
-
-            # Force redirect (WORKING WAY)
-            st.components.v1.html(f"""
-                <script>
-                    window.location.href = "{res.url}";
-                </script>
-            """, height=0)
-
-        else:
-            st.error("OAuth URL not generated")
-
-    except Exception as e:
-        st.error(f"Google login error: {e}")
+        if res.url:
+            st.markdown(f"[Click here if not redirected]({res.url})")
+            st.markdown(
+                f"""<script>window.location.href="{res.url}"</script>""",
+                unsafe_allow_html=True
+            )
 
 # -------------------------------
 # SIGNUP
