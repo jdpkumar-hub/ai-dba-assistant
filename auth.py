@@ -11,6 +11,28 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 REDIRECT_URL = "https://ai-oracle-assistant.streamlit.app"
 
+if st.session_state.get("reset_mode"):
+
+    st.title("🔑 Set New Password")
+
+    new_pass = st.text_input("New Password", type="password")
+    confirm_pass = st.text_input("Confirm Password", type="password")
+
+    if st.button("Update Password"):
+        if new_pass != confirm_pass:
+            st.error("Passwords do not match")
+        else:
+            try:
+                supabase.auth.update_user({
+                    "password": new_pass
+                })
+                st.success("Password updated successfully!")
+                st.session_state.reset_mode = False
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+    st.stop()
 # -------------------------------
 # LOGIN (EMAIL + GOOGLE)
 # -------------------------------
@@ -69,15 +91,21 @@ def signup():
             return
 
         try:
-            supabase.auth.sign_up({
-                "email": email,
-                "password": password
-            })
+            res = supabase.auth.sign_up({
+            "email": email,
+            "password": password,
+            "options": {
+            "email_redirect_to": "https://ai-oracle-assistant.streamlit.app"
+            }
+        })
 
-            st.success("Account created! Check email for verification link")
-
-        except Exception as e:
+        if res.user:
+            st.success("Account created! Check your email for verification link")
+        else:
             st.error("Signup failed")
+
+except Exception as e:
+    st.error(f"Error: {e}")
 
 # -------------------------------
 # RESET PASSWORD
@@ -89,13 +117,13 @@ def reset_password():
 
     if st.button("Send Reset Link"):
         try:
-            supabase.auth.reset_password_email(
-                email,
-                options={
-                        "redirect_to": "https://ai-oracle-assistant.streamlit.app"
-                }
-            )
-            st.success("Reset link sent to email")
+            params = st.query_params
+            # 🔑 PASSWORD RESET HANDLER
+                if "type" in params and params["type"] == "recovery":
+                    st.session_state.reset_mode = True
+                    st.query_params.clear()
+                    st.rerun()
+                    st.success("Reset link sent to email")
         except:
             st.error("Failed to send reset email")
 
