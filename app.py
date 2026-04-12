@@ -5,6 +5,7 @@ from openai import OpenAI
 import pandas as pd
 from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
 
 # -------------------------------
 # 🔐 HANDLE OAUTH CALLBACK (FIXED)
@@ -29,19 +30,22 @@ if "code" in params:
 
     except Exception as e:
         st.error(f"Login failed: {e}")
-        
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 #-----------------------------------------------------
 # DOWNLOAD REPORT
 #-----------------------------------------------------
 def create_pdf(text):
-    file_path = "/mnt/data/report.pdf"
-    doc = SimpleDocTemplate(file_path)
+    buffer = BytesIO()
+
+    doc = SimpleDocTemplate(buffer)
     styles = getSampleStyleSheet()
     story = [Paragraph(text, styles["Normal"])]
     doc.build(story)
-    return file_path
+
+    buffer.seek(0)
+    return buffer
 
 # -------------------------------
 # ⚙️ PAGE CONFIG
@@ -147,7 +151,7 @@ if not user:
 
 # ================= MAIN =================
 with st.sidebar:
-    st.image("image/logo.png", width=200)
+    st.image("image/logo2.png", width=220)
     page = st.radio("", ["🏠 Dashboard", "💬 AI Chat", "📊 Reports", "📜 History", "⚙️ Settings"])
     st.success(user.email)
     logout()
@@ -202,8 +206,11 @@ elif page == "💬 AI Chat":
 
                 # ✅ FIXED INDENTATION
                 pdf_file = create_pdf(answer)
-                with open(pdf_file, "rb") as f:
-                    st.download_button("📄 Download Report", f, file_name="report.pdf")
+                st.download_button(
+                    "📄 Download Report",
+                    pdf_file,
+                    file_name="report.pdf"
+                    )
 
                 try:
                     supabase.table("query_history").insert({
@@ -233,10 +240,13 @@ elif page == "💬 AI Chat":
 
                     # ✅ FIXED INDENTATION
                     pdf_file = create_pdf(answer)
-                    with open(pdf_file, "rb") as f:
-                        st.download_button("📄 Download Report", f, file_name="report.pdf")
+                    st.download_button(
+                        "📄 Download Report",
+                        pdf_file,
+                        file_name="report.pdf"
+                     )
 
-                    try:
+                        try:
                         supabase.table("query_history").insert({
                             "user_email": user.email,
                             "question": sql,
