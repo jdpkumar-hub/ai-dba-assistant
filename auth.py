@@ -63,54 +63,40 @@ def login():
 
     st.divider()
 
-#   # Google Login
-#   if st.button("🔵 Continue with Google"):
-#       res = supabase.auth.sign_in_with_oauth({
-#           "provider": "google",
-#           "options": {
-#               "redirect_to": REDIRECT_URL
-#           }
-#       })
-#
-#       if res.url:
-#           st.markdown(f"[Click here if not redirected]({res.url})")
-#           st.markdown(
-#               f"""<script>window.location.href="{res.url}"</script>""",
-#               unsafe_allow_html=True
-#           )
+    # -------------------------------
+    # Google Login (FIXED)
+    # -------------------------------
+    try:
+        res = supabase.auth.sign_in_with_oauth({
+            "provider": "google",
+            "options": {
+                "redirect_to": REDIRECT_URL
+            }
+        })
 
+        if res.url:
+            st.markdown(f"""
+            <a href="{res.url}" target="_self">
+                <div style="
+                    display:flex;
+                    align-items:center;
+                    border:1px solid #ccc;
+                    padding:10px;
+                    width:260px;
+                    border-radius:6px;
+                    cursor:pointer;
+                    background:white;
+                    margin-top:10px;
+                ">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
+                    <span style="margin-left:10px;">Continue with Google</span>
+                </div>
+            </a>
+            """, unsafe_allow_html=True)
 
-# Google Login (Clean Button)
-try:
-    res = supabase.auth.sign_in_with_oauth({
-        "provider": "google",
-        "options": {
-            "redirect_to": REDIRECT_URL
-        }
-    })
+    except Exception as e:
+        st.error(f"Google login error: {e}")
 
-    if res.url:
-        st.markdown(f"""
-        <a href="{res.url}" target="_self">
-            <div style="
-                display:flex;
-                align-items:center;
-                border:1px solid #ccc;
-                padding:10px;
-                width:260px;
-                border-radius:6px;
-                cursor:pointer;
-                background:white;
-                margin-top:10px;
-            ">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
-                <span style="margin-left:10px;">Continue with Google</span>
-            </div>
-        </a>
-        """, unsafe_allow_html=True)
-
-except Exception as e:
-    st.error(f"Google login error: {e}")
 # -------------------------------
 # SIGNUP (WITH CONFIRM PASSWORD)
 # -------------------------------
