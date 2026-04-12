@@ -6,6 +6,30 @@ import pandas as pd
 from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 
+# -------------------------------
+# 🔐 HANDLE OAUTH CALLBACK (FIXED)
+# -------------------------------
+params = st.query_params
+
+if "code" in params:
+    try:
+        supabase.auth.exchange_code_for_session({
+            "auth_code": params["code"]
+        })
+
+        # Clear URL params
+        st.query_params.clear()
+
+        # Save session
+        user = get_user()
+        if user:
+            st.session_state.user = user
+
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"Login failed: {e}")
+        
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 #-----------------------------------------------------
