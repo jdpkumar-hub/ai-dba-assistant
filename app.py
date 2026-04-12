@@ -62,10 +62,10 @@ if "code" in params:
         st.query_params.clear()
 
         user = get_user()
-        if user:
-            st.session_state.user = user
-
+        if user and "user" not in st.session_state:
+        st.session_state.user = user
         st.rerun()
+ 
 
     except Exception as e:
         st.error(f"Login failed: {e}")
