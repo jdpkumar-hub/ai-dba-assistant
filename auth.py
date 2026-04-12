@@ -68,28 +68,24 @@ def login():
     # -------------------------------
     # 🔵 GOOGLE LOGIN (FIXED)
     # -------------------------------
-    st.markdown("### Or login with Google")
+   # -------------------------------
+# 🔵 GOOGLE LOGIN (FINAL WORKING)
+# -------------------------------
+st.markdown("### Or login with Google")
 
-    if st.button("🔵 Continue with Google", key="google_login"):
+try:
+    res = supabase.auth.sign_in_with_oauth({
+        "provider": "google",
+        "options": {
+            "redirect_to": REDIRECT_URL
+        }
+    })
 
-        try:
-            res = supabase.auth.sign_in_with_oauth({
-                "provider": "google",
-                "options": {
-                    "redirect_to": REDIRECT_URL
-                }
-            })
+    if res and res.url:
+        st.link_button("🔵 Continue with Google", res.url)
 
-            if res and res.url:
-                st.markdown(
-                    f"<script>window.location.href='{res.url}'</script>",
-                    unsafe_allow_html=True
-                )
-            else:
-                st.error("Google OAuth URL not generated")
-
-        except Exception as e:
-            st.error(f"Google login error: {e}")
+except Exception as e:
+    st.error(f"Google login error: {e}")
 
 # -------------------------------
 # SIGNUP
