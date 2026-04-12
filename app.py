@@ -6,6 +6,43 @@ import pandas as pd
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
+import oracledb
+import streamlit as st
+
+import time
+
+refresh_rate = st.slider("Refresh Interval (sec)", 2, 10, 5)
+
+time.sleep(refresh_rate)
+st.rerun()
+
+# -------------------------------
+# ORACLE DB
+# -------------------------------
+
+@st.cache_resource
+def get_connection():
+    return oracledb.connect(
+        user=st.secrets["ORACLE_USER"],
+        password=st.secrets["ORACLE_PASSWORD"],
+        dsn=st.secrets["ORACLE_DSN"]
+    )
+
+cursor.execute("""
+SELECT sql_id, elapsed_time/1000000 seconds
+FROM v$sql
+ORDER BY elapsed_time DESC FETCH FIRST 5 ROWS ONLY
+""")
+
+st.subheader("Top SQL by Time")
+
+for sql_id, sec in cursor.fetchall():
+    st.write(f"{sql_id} → {round(sec,2)} sec")
+    
+# -------------------------------
+# OPENAI CLIENT
+# -------------------------------
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # -------------------------------
 # 🔐 SESSION INIT
@@ -68,10 +105,7 @@ if "code" in params:
     except Exception as e:
         st.error(f"Login failed: {e}")
 
-# -------------------------------
-# OPENAI CLIENT
-# -------------------------------
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 # -------------------------------
 # PAGE CONFIG
@@ -241,6 +275,100 @@ elif page == "💬 AI Chat":
                     messages=[{"role": "user", "content": content}]
                 )
                 st.write(response.choices[0].message.content)
+
+
+# =======PERFORMANCE DIAGNOSTICS=============
+
+elif page == "📊 Performance Diagnostics":
+    st.title("📊 AI Performance Diagnostics")
+
+    uploaded_file = st.file_uploader("Upload AWR Report (.txt)", type=["txt"])
+
+    if uploaded_file:
+        content = uploaded_file.read().decode("utf-8")
+
+        if st.button("Analyze Performance"):
+            with st.spinner("AI analyzing performance..."):
+
+                prompt = f"""
+                Analyze this Oracle AWR report and provide:
+
+                1. Top 5 performance issues
+                2. Root cause
+                3. Recommended fixes
+                4. SQL tuning suggestions
+
+                Report:
+                {content[:15000]}
+                """
+
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+
+                result = response.choices[0].message.content
+
+                st.markdown("### 🔍 Analysis Result")
+                st.write(result)
+
+# =========LIVE MONITORING==============
+
+elif page == "📡 Live Monitoring":
+
+    st.title("📡 Real-Time Oracle Monitoring")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # ---------------------------
+    # CPU USAGE
+    # ---------------------------
+    cursor.execute("""
+        SELECT value 
+        FROM v$sysmetric 
+        WHERE metric_name = 'CPU Usage Per Sec'
+        AND rownum = 1
+    """)
+    cpu = cursor.fetchone()[0]
+
+    # ---------------------------
+    # ACTIVE SESSIONS
+    # ---------------------------
+    cursor.execute("""
+        SELECT COUNT(*) 
+        FROM v$session 
+        WHERE status = 'ACTIVE'
+    """)
+    sessions = cursor.fetchone()[0]
+
+    # ---------------------------
+    # TOP WAIT EVENTS
+    # ---------------------------
+    cursor.execute("""
+        SELECT event, total_waits 
+        FROM v$system_event
+        ORDER BY total_waits DESC FETCH FIRST 5 ROWS ONLY
+    """)
+    waits = cursor.fetchall()
+
+    # ---------------------------
+    # DISPLAY METRICS
+    # ---------------------------
+    col1, col2 = st.columns(2)
+
+    col1.metric("CPU Usage", f"{round(cpu,2)}%")
+    col2.metric("Active Sessions", sessions)
+
+    st.divider()
+
+    # ---------------------------
+    # WAIT EVENTS
+    # ---------------------------
+    st.subheader("Top Wait Events")
+
+    for event, waits_count in waits:
+        st.write(f"🔹 {event} → {waits_count}")
 
 # ================= HISTORY =================
 elif page == "📜 History":
