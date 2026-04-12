@@ -154,19 +154,19 @@ if not user:
 
         tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
 
-         with tab1:
-            login()
+    with tab1:
+    login()
 
-        with tab2:
-            signup()
+    with tab2:
+    signup()
 
-        with tab3:
-            reset_password()
+    with tab3:
+    reset_password()
 
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        st.stop()
+    st.stop()
 
 # ================= MAIN =================
 with st.sidebar:
