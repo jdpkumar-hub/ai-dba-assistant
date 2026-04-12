@@ -48,6 +48,9 @@ def login():
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
+    # -------------------------------
+    # EMAIL LOGIN
+    # -------------------------------
     if st.button("Login"):
         try:
             res = supabase.auth.sign_in_with_password({
@@ -66,26 +69,45 @@ def login():
     st.divider()
 
     # -------------------------------
-    # 🔵 GOOGLE LOGIN (FIXED)
+    # 🔵 GOOGLE LOGIN (FINAL WORKING)
     # -------------------------------
-   # -------------------------------
-# 🔵 GOOGLE LOGIN (FINAL WORKING)
-# -------------------------------
-st.markdown("### Or login with Google")
+    st.markdown("### Or login with Google")
 
-try:
-    res = supabase.auth.sign_in_with_oauth({
-        "provider": "google",
-        "options": {
-            "redirect_to": REDIRECT_URL
-        }
-    })
+    # Generate URL ONCE
+    if "google_url" not in st.session_state:
+        try:
+            res = supabase.auth.sign_in_with_oauth({
+                "provider": "google",
+                "options": {
+                    "redirect_to": REDIRECT_URL
+                }
+            })
 
-    if res and res.url:
-        st.link_button("🔵 Continue with Google", res.url)
+            if res and res.url:
+                st.session_state.google_url = res.url
 
-except Exception as e:
-    st.error(f"Google login error: {e}")
+        except Exception as e:
+            st.error(f"Google init error: {e}")
+
+    # Show clickable button
+    if "google_url" in st.session_state:
+        st.markdown(f"""
+        <a href="{st.session_state.google_url}" target="_self">
+            <button style="
+                width:100%;
+                padding:12px;
+                border-radius:8px;
+                border:1px solid #ccc;
+                background:white;
+                cursor:pointer;
+                font-size:16px;
+            ">
+            🔵 Continue with Google
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
+    else:
+        st.error("Google login not ready")
 
 # -------------------------------
 # SIGNUP
