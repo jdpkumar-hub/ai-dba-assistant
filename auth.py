@@ -17,6 +17,7 @@ REDIRECT_URL = "https://ai-oracle-assistant.streamlit.app"
 def login():
     st.markdown("## 🔐 Login")
 
+    # 🔵 Google Login Button
     if st.button("🔵 Continue with Google"):
 
         res = supabase.auth.sign_in_with_oauth({
@@ -32,8 +33,10 @@ def login():
         auth_url = res.url
 
         if auth_url:
+            # Fallback clickable link
             st.markdown(f"[👉 Click here if not redirected]({auth_url})")
 
+            # Auto redirect
             st.markdown(
                 f"""
                 <script>
@@ -45,11 +48,16 @@ def login():
 
             return False
 
-    # ✅ AFTER REDIRECT — STORE SESSION
+    # -------------------------------
+    # ✅ SESSION HANDLING AFTER REDIRECT
+    # -------------------------------
     user = get_user()
+
     if user:
-        st.session_state.user = user
-        st.rerun()
+        # Store session safely
+        if "user" not in st.session_state or st.session_state.user is None:
+            st.session_state.user = user
+            st.rerun()
 
     return False
 
@@ -61,7 +69,7 @@ def get_user():
     try:
         res = supabase.auth.get_user()
         return res.user if res else None
-    except:
+    except Exception:
         return None
 
 
@@ -70,6 +78,11 @@ def get_user():
 # -------------------------------
 def logout():
     if st.button("🚪 Logout"):
-        supabase.auth.sign_out()
+        try:
+            supabase.auth.sign_out()
+        except:
+            pass
+
+        # Clear session
         st.session_state.clear()
         st.rerun()

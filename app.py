@@ -57,14 +57,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------
-# USER CHECK
+# USER CHECK (FIXED)
 # -------------------------------
+if "user" not in st.session_state:
+    st.session_state.user = None
+
 user = get_user()
 
 if user:
     st.session_state.user = user
-elif "user" in st.session_state:
-    user = st.session_state.user
+
+user = st.session_state.user
 
 # ================= LOGIN =================
 if not user:
