@@ -74,11 +74,10 @@ if "code" in params:
 #           st.session_state.user = user
 #           st.rerun()
            user = get_user()
-
-            if user and not st.session_state.user:
+                if user and not st.session_state.user:
                 st.session_state.user = user
 
-            except Exception as e:
+                except Exception as e:
                 st.error(f"Login failed: {e}")
         
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
