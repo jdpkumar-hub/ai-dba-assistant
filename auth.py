@@ -48,9 +48,6 @@ def login():
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
-    # -------------------------------
-    # EMAIL LOGIN
-    # -------------------------------
     if st.button("Login"):
         try:
             res = supabase.auth.sign_in_with_password({
@@ -69,38 +66,30 @@ def login():
     st.divider()
 
     # -------------------------------
-    # 🔵 GOOGLE LOGIN (FINAL WORKING)
+    # 🔵 GOOGLE LOGIN (FIXED)
     # -------------------------------
-# -------------------------------
-# 🔵 GOOGLE LOGIN (FINAL FIX)
-# -------------------------------
-st.markdown("### Or login with Google")
+    st.markdown("### Or login with Google")
 
-if st.button("🔵 Continue with Google"):
+    if st.button("🔵 Continue with Google", key="google_login"):
 
-    try:
-        res = supabase.auth.sign_in_with_oauth({
-            "provider": "google",
-            "options": {
-                "redirect_to": "https://ai-oracle-assistant.streamlit.app"
-            }
-        })
+        try:
+            res = supabase.auth.sign_in_with_oauth({
+                "provider": "google",
+                "options": {
+                    "redirect_to": REDIRECT_URL
+                }
+            })
 
-        if res and res.url:
-            st.write("Redirecting to Google...")
+            if res and res.url:
+                st.markdown(
+                    f"<script>window.location.href='{res.url}'</script>",
+                    unsafe_allow_html=True
+                )
+            else:
+                st.error("Google OAuth URL not generated")
 
-            # Force redirect (WORKING WAY)
-            st.components.v1.html(f"""
-                <script>
-                    window.location.href = "{res.url}";
-                </script>
-            """, height=0)
-
-        else:
-            st.error("OAuth URL not generated")
-
-    except Exception as e:
-        st.error(f"Google login error: {e}")
+        except Exception as e:
+            st.error(f"Google login error: {e}")
 
 # -------------------------------
 # SIGNUP
