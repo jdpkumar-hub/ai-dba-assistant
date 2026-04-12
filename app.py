@@ -253,3 +253,9 @@ elif page == "📊 Reports":
 # ================= SETTINGS =================
 elif page == "⚙️ Settings":
     st.title("Settings")
+    
+# =========================
+# 📌 FOOTER
+# =========================
+st.markdown("---")
+st.caption("© AI DBA Assistant | Built by Pradarshan Kumar JD 🚀")
