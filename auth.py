@@ -72,23 +72,62 @@ def login():
     # 🔵 GOOGLE LOGIN (SMART UX FIX)
     # -------------------------------
    # Google Login
+# -------------------------------
+# GOOGLE LOGIN (STABLE VERSION)
+# -------------------------------
+
 st.markdown("### Or login with Google")
 
-if st.button("🔵 Continue with Google"):
-    res = supabase.auth.sign_in_with_oauth({
-        "provider": "google",
-        "options": {
-            "redirect_to": "https://ai-oracle-assistant.streamlit.app/"
-        }
-    })
+# Initialize state
+if "google_redirect" not in st.session_state:
+    st.session_state.google_redirect = False
 
-    if res and res.url:
-        st.markdown(
-            f"""
-            <meta http-equiv="refresh" content="0; url={res.url}">
-            """,
-            unsafe_allow_html=True
-        )
+# Step 1: Show button
+if not st.session_state.google_redirect:
+    if st.button("🔵 Continue with Google"):
+        res = supabase.auth.sign_in_with_oauth({
+            "provider": "google",
+            "options": {
+                "redirect_to": "https://ai-oracle-assistant.streamlit.app/"
+            }
+        })
+
+        if res and res.url:
+            st.session_state.google_redirect = True
+            st.session_state.google_url = res.url
+            st.rerun()
+
+# Step 2: Show redirect link (same button style)
+else:
+    st.success("Redirecting to Google...")
+
+    st.markdown(
+        f"""
+        <a href="{st.session_state.google_url}" target="_self">
+            <button style="
+                background-color:#4285F4;
+                color:white;
+                padding:10px 20px;
+                border:none;
+                border-radius:5px;
+                font-size:16px;
+                cursor:pointer;">
+                🔵 Continue with Google
+            </button>
+        </a>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Auto redirect
+    st.markdown(
+        f"""
+        <script>
+        window.location.href = "{st.session_state.google_url}";
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
 # -------------------------------
 # SIGNUP
 # -------------------------------
