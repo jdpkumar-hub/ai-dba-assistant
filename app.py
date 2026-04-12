@@ -2,12 +2,9 @@ import streamlit as st
 from auth import login, signup, reset_password, logout, get_user, supabase
 import os
 from openai import OpenAI
-import pandas as pd
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
-import oracledb
-import time
 
 # -------------------------------
 # CONFIG
@@ -18,17 +15,6 @@ st.set_page_config(page_title="AI DBA Assistant", page_icon="🤖", layout="wide
 # OPENAI
 # -------------------------------
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-# -------------------------------
-# ORACLE CONNECTION
-# -------------------------------
-@st.cache_resource
-def get_connection():
-    return oracledb.connect(
-        user=st.secrets["ORACLE_USER"],
-        password=st.secrets["ORACLE_PASSWORD"],
-        dsn=st.secrets["ORACLE_DSN"]
-    )
 
 # -------------------------------
 # SESSION INIT
@@ -65,15 +51,18 @@ if "code" in params:
             "auth_code": params["code"]
         })
         st.query_params.clear()
+
         user = get_user()
         if user:
             st.session_state.user = user
-            st.rerun()
+
+        st.rerun()
+
     except Exception as e:
         st.error(f"Login failed: {e}")
 
 # -------------------------------
-# LOGIN PAGE
+# AUTH CHECK
 # -------------------------------
 user = get_user()
 if user:
@@ -98,14 +87,15 @@ if not user:
 # -------------------------------
 with st.sidebar:
     st.title("AI DBA Assistant")
+
     page = st.radio("", [
         "🏠 Dashboard",
         "💬 AI Chat",
         "📊 Performance Diagnostics",
-        "📡 Live Monitoring",
         "📜 History",
         "⚙️ Settings"
     ])
+
     st.success(user.email)
     logout()
 
@@ -113,7 +103,14 @@ with st.sidebar:
 # DASHBOARD
 # ===============================
 if page == "🏠 Dashboard":
-    st.title("📊 Dashboard")
+    st.title("🚀 AI DBA Assistant")
+    st.markdown("### Smart Oracle Optimization Platform")
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric("Active Users", "12")
+    col2.metric("Queries Analyzed", "320")
+    col3.metric("Reports Generated", "58")
 
 # ===============================
 # AI CHAT
@@ -121,122 +118,64 @@ if page == "🏠 Dashboard":
 elif page == "💬 AI Chat":
     st.title("💬 AI DBA Assistant")
 
-    question = st.text_input("Ask anything...")
+    question = st.text_input("Ask any Oracle DBA question:")
 
     if question:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": question}]
-        )
-        answer = response.choices[0].message.content
-        st.write(answer)
+        with st.spinner("Thinking..."):
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": question}]
+            )
 
-        pdf = create_pdf(answer)
-        st.download_button("Download PDF", pdf, "report.pdf")
+            answer = response.choices[0].message.content
+
+            st.success("Response:")
+            st.write(answer)
+
+            pdf = create_pdf(answer)
+            st.download_button("📄 Download as PDF", pdf, "ai_response.pdf")
 
 # ===============================
 # PERFORMANCE DIAGNOSTICS
 # ===============================
 elif page == "📊 Performance Diagnostics":
-    st.title("📊 AI Performance Diagnostics")
+    st.title("📊 AWR Performance Analyzer")
 
-    file = st.file_uploader("Upload AWR Report", type=["txt"])
+    file = st.file_uploader("Upload AWR Report (.txt)", type=["txt"])
 
     if file:
         content = file.read().decode("utf-8")
 
-        if st.button("Analyze"):
-            with st.spinner("Analyzing..."):
+        st.success("File uploaded successfully!")
+
+        if st.button("🔍 Analyze Report"):
+            with st.spinner("Analyzing AWR..."):
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{
                         "role": "user",
-                        "content": f"Analyze this AWR report:\n{content[:15000]}"
+                        "content": f"Analyze this Oracle AWR report and give key findings:\n{content[:15000]}"
                     }]
                 )
-                st.write(response.choices[0].message.content)
 
-# ===============================
-# LIVE MONITORING
-# ===============================
-elif page == "📡 Live Monitoring":
+                result = response.choices[0].message.content
 
-    st.title("📡 Real-Time Oracle Monitoring")
-
-    # Refresh control
-    refresh_rate = st.slider("Refresh Interval (sec)", 2, 10, 5)
-    auto_refresh = st.checkbox("Enable Auto Refresh", value=True)
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # CPU
-        cursor.execute("""
-            SELECT value 
-            FROM v$sysmetric 
-            WHERE metric_name = 'CPU Usage Per Sec'
-            AND rownum = 1
-        """)
-        cpu = cursor.fetchone()[0]
-
-        # Sessions
-        cursor.execute("""
-            SELECT COUNT(*) 
-            FROM v$session 
-            WHERE status = 'ACTIVE'
-        """)
-        sessions = cursor.fetchone()[0]
-
-        # Wait events
-        cursor.execute("""
-            SELECT event, total_waits 
-            FROM v$system_event
-            ORDER BY total_waits DESC FETCH FIRST 5 ROWS ONLY
-        """)
-        waits = cursor.fetchall()
-
-        # Top SQL
-        cursor.execute("""
-            SELECT sql_id, elapsed_time/1000000 seconds
-            FROM v$sql
-            ORDER BY elapsed_time DESC FETCH FIRST 5 ROWS ONLY
-        """)
-        top_sql = cursor.fetchall()
-
-        col1, col2 = st.columns(2)
-        col1.metric("CPU Usage", f"{round(cpu,2)}%")
-        col2.metric("Active Sessions", sessions)
-
-        st.divider()
-
-        st.subheader("Top Wait Events")
-        for event, count in waits:
-            st.write(f"{event} → {count}")
-
-        st.subheader("Top SQL by Time")
-        for sql_id, sec in top_sql:
-            st.write(f"{sql_id} → {round(sec,2)} sec")
-
-    except Exception as e:
-        st.error(f"Database Error: {e}")
-
-    # Auto refresh
-    if auto_refresh:
-        time.sleep(refresh_rate)
-        st.rerun()
+                st.subheader("📈 Analysis Result")
+                st.write(result)
 
 # ===============================
 # HISTORY
 # ===============================
 elif page == "📜 History":
     st.title("📜 History")
+    st.info("History feature coming soon...")
 
 # ===============================
 # SETTINGS
 # ===============================
 elif page == "⚙️ Settings":
     st.title("⚙️ Settings")
+    st.info("Settings coming soon...")
 
 # -------------------------------
 # FOOTER
