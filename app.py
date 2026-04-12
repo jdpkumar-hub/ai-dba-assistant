@@ -73,7 +73,7 @@ if "code" in params:
 #       if user and "user" not in st.session_state:
 #           st.session_state.user = user
 #           st.rerun()
-           user = get_user()
+         user = get_user()
                 if user and not st.session_state.user:
                 st.session_state.user = user
 
