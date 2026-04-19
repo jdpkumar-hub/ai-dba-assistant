@@ -4,20 +4,12 @@ from supabase import create_client
 # -------------------------------
 # CONFIG
 # -------------------------------
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+SUPABASE_URL = "https://wequqsbvhydvugifevhm.supabase.co"
+SUPABASE_KEY = "sb_publishable_ZOfGu0PLriJqtJLdmk6Bkg_mJ3HrURB"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 REDIRECT_URL = "https://ai-oracle-assistant.streamlit.app"
-
-# -------------------------------
-# SESSION INIT (PREVENT LEAK)
-# -------------------------------
-if "user" not in st.session_state:
-    st.session_state.user = None
-    st.session_state.user_email = None
-
 
 # -------------------------------
 # LOGIN (EMAIL + GOOGLE)
@@ -36,19 +28,16 @@ def login():
             })
 
             if res.user:
-                # ✅ SAFE SESSION STORE
                 st.session_state.user = res.user
-                st.session_state.user_email = res.user.email
-
                 st.success("Login successful")
                 st.rerun()
 
-        except Exception:
+        except Exception as e:
             st.error("Invalid credentials")
 
     st.divider()
 
-    # ---------------- GOOGLE LOGIN ----------------
+    # Google Login
     if st.button("🔵 Continue with Google"):
         res = supabase.auth.sign_in_with_oauth({
             "provider": "google",
@@ -64,9 +53,8 @@ def login():
                 unsafe_allow_html=True
             )
 
-
 # -------------------------------
-# SIGNUP
+# SIGNUP (WITH CONFIRM PASSWORD)
 # -------------------------------
 def signup():
     st.markdown("## 🆕 Create Account")
@@ -88,9 +76,8 @@ def signup():
 
             st.success("Account created! Check email for verification link")
 
-        except Exception:
+        except Exception as e:
             st.error("Signup failed")
-
 
 # -------------------------------
 # RESET PASSWORD
@@ -107,28 +94,19 @@ def reset_password():
         except:
             st.error("Failed to send reset email")
 
-
 # -------------------------------
-# GET USER (FIXED 🔥)
+# GET USER
 # -------------------------------
 def get_user():
     try:
         res = supabase.auth.get_user()
-
-        if res and res.user:
-            # ✅ Prevent cross-session leakage
-            if st.session_state.user_email != res.user.email:
-                st.session_state.user = res.user
-                st.session_state.user_email = res.user.email
-
-            return res.user
-
-        return None
-
+        return res.user if res else None
     except:
         return None
 
-
+# -------------------------------
+# LOGOUT
+# -------------------------------
 # -------------------------------
 # LOGOUT (FIXED 🔥)
 # -------------------------------
