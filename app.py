@@ -2,10 +2,6 @@ import streamlit as st
 from auth import login, signup, reset_password, logout, get_user, supabase
 from openai import OpenAI
 import pandas as pd
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from io import BytesIO
-from datetime import datetime
 
 # ===============================
 # 🔐 OAUTH CALLBACK
@@ -27,11 +23,11 @@ if "code" in params:
 if "user" not in st.session_state:
     st.session_state.user = None
 
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
 if "usage" not in st.session_state:
     st.session_state.usage = 0
-
-if "quick_prompt" not in st.session_state:
-    st.session_state.quick_prompt = ""
 
 # ===============================
 # OPENAI
@@ -57,11 +53,6 @@ Always provide:
 """
 
 # ===============================
-# PAGE CONFIG
-# ===============================
-st.set_page_config(page_title="AI DBA Assistant", layout="wide")
-
-# ===============================
 # USER SESSION
 # ===============================
 user = get_user()
@@ -85,11 +76,9 @@ if not user:
         ⚡ SQL Tuning  
         📊 AWR Analysis  
         🤖 AI Insights  
-        🚀 Performance Fixes  
         """)
 
     with col2:
-        st.markdown("### Login")
         tab1, tab2, tab3 = st.tabs(["Login", "Signup", "Reset"])
         with tab1: login()
         with tab2: signup()
@@ -124,85 +113,71 @@ if page == "Dashboard":
         st.line_chart(df)
 
 # ===============================
-# AI CHAT
+# 💬 CHATGPT STYLE UI
 # ===============================
 elif page == "AI Chat":
 
     st.title("🤖 AI DBA Assistant")
 
     # ---------------------------
-    # 🔥 CHAT SHORTCUT BUTTONS
+    # QUICK BUTTONS
     # ---------------------------
-    st.subheader("⚡ Quick Actions")
-
     col1, col2, col3, col4 = st.columns(4)
 
     if col1.button("🐢 Slow Query"):
-        st.session_state.quick_prompt = "Why is my Oracle query slow? Provide tuning steps."
+        st.session_state.messages.append({"role": "user", "content": "Why is my Oracle query slow?"})
 
     if col2.button("🔥 High CPU"):
-        st.session_state.quick_prompt = "Oracle database high CPU troubleshooting steps."
+        st.session_state.messages.append({"role": "user", "content": "Oracle high CPU troubleshooting steps"})
 
     if col3.button("💾 Tablespace Full"):
-        st.session_state.quick_prompt = "Tablespace full issue resolution steps."
+        st.session_state.messages.append({"role": "user", "content": "Tablespace full issue fix"})
 
     if col4.button("🔒 Lock Issue"):
-        st.session_state.quick_prompt = "How to identify and fix Oracle locking issues."
+        st.session_state.messages.append({"role": "user", "content": "Oracle locking issue troubleshooting"})
+
+    st.divider()
 
     # ---------------------------
-    # MODE SELECT
+    # DISPLAY CHAT HISTORY
     # ---------------------------
-    mode = st.selectbox("Mode", ["Chat", "SQL Analyzer", "AWR Analyzer"])
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
     # ---------------------------
-    # COMMON FUNCTION
+    # INPUT BOX (BOTTOM)
     # ---------------------------
-    def run_ai(prompt_text):
+    user_input = st.chat_input("Ask your DBA question...")
+
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+
+        with st.chat_message("user"):
+            st.markdown(user_input)
+
+        # usage limit
         if st.session_state.usage >= 20:
             st.warning("🚫 Free limit reached")
             st.stop()
 
         st.session_state.usage += 1
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt_text}
-            ]
-        )
+        # AI response
+        with st.chat_message("assistant"):
+            with st.spinner("Analyzing..."):
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        *st.session_state.messages
+                    ]
+                )
 
-        return response.choices[0].message.content
+                answer = response.choices[0].message.content
+                st.markdown(answer)
 
-    # ================= CHAT =================
-    if mode == "Chat":
-        question = st.text_input(
-            "Ask DBA question",
-            value=st.session_state.quick_prompt
-        )
-
-        if question:
-            answer = run_ai(question)
-            st.write(answer)
-
-    # ================= SQL =================
-    elif mode == "SQL Analyzer":
-        sql = st.text_area("Paste SQL")
-
-        if st.button("Analyze SQL"):
-            answer = run_ai(f"Analyze Oracle SQL:\n{sql}")
-            st.write(answer)
-
-    # ================= AWR =================
-    elif mode == "AWR Analyzer":
-        file = st.file_uploader("Upload AWR", type=["txt"])
-
-        if file:
-            content = file.read().decode()[:15000]
-
-            if st.button("Analyze AWR"):
-                answer = run_ai(content)
-                st.write(answer)
+        st.session_state.messages.append({"role": "assistant", "content": answer})
 
 # ===============================
 # HISTORY
@@ -224,4 +199,4 @@ elif page == "History":
 # FOOTER
 # ===============================
 st.markdown("---")
-st.caption("🚀 AI DBA Assistant")
+st.caption("🚀 AI DBA Assistant - ChatGPT Style")
