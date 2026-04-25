@@ -27,9 +27,6 @@ if "user" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "usage" not in st.session_state:
-    st.session_state.usage = 0
-
 # ===============================
 # OPENAI
 # ===============================
@@ -54,11 +51,6 @@ Always provide:
 """
 
 # ===============================
-# PAGE CONFIG
-# ===============================
-st.set_page_config(page_title="AI DBA Assistant", layout="wide")
-
-# ===============================
 # USER SESSION
 # ===============================
 user = get_user()
@@ -68,7 +60,47 @@ if user:
 user = st.session_state.user
 
 # ===============================
-# LOGIN UI
+# 🧠 USER PLAN FUNCTIONS
+# ===============================
+def ensure_user_plan(user):
+    res = supabase.table("user_plans")\
+        .select("*")\
+        .eq("email", user.email)\
+        .execute()
+
+    if not res.data:
+        supabase.table("user_plans").insert({
+            "user_id": user.id,
+            "email": user.email,
+            "plan": "free",
+            "usage_count": 0
+        }).execute()
+
+def get_user_plan(user):
+    data = supabase.table("user_plans")\
+        .select("*")\
+        .eq("email", user.email)\
+        .execute()
+
+    return data.data[0]
+
+def check_usage(user):
+    data = get_user_plan(user)
+
+    if data["plan"] == "free" and data["usage_count"] >= 20:
+        st.warning("🚫 Free limit reached. Upgrade required.")
+        st.stop()
+
+def increment_usage(user):
+    data = get_user_plan(user)
+    count = data["usage_count"]
+
+    supabase.table("user_plans").update({
+        "usage_count": count + 1
+    }).eq("email", user.email).execute()
+
+# ===============================
+# LOGIN UI (UNCHANGED)
 # ===============================
 if not user:
     col1, col2 = st.columns([1, 2])
@@ -94,16 +126,28 @@ if not user:
     st.stop()
 
 # ===============================
-# SIDEBAR
+# ENSURE USER PLAN
+# ===============================
+ensure_user_plan(user)
+plan_data = get_user_plan(user)
+
+# ===============================
+# SIDEBAR (UNCHANGED + PLAN)
 # ===============================
 with st.sidebar:
     st.image("image/logo2.png", width=200)
     page = st.radio("", ["Dashboard", "AI Chat", "History"])
+
     st.success(user.email)
+    st.info(f"Plan: {plan_data['plan']} | Usage: {plan_data['usage_count']}")
+
+    if plan_data["plan"] == "free":
+        st.warning("Upgrade to Pro 🚀")
+
     logout()
 
 # ===============================
-# DASHBOARD
+# DASHBOARD (UNCHANGED)
 # ===============================
 if page == "Dashboard":
     st.title("📊 Dashboard")
@@ -121,7 +165,7 @@ if page == "Dashboard":
         st.line_chart(df.groupby(df["created_at"].dt.date).size())
 
 # ===============================
-# AI CHAT (FULL FEATURE)
+# AI CHAT (UNCHANGED UI + SaaS LOGIC)
 # ===============================
 elif page == "AI Chat":
 
@@ -132,7 +176,6 @@ elif page == "AI Chat":
     # ================= CHAT =================
     with tab1:
 
-        # Quick buttons
         col1, col2, col3, col4 = st.columns(4)
 
         if col1.button("🐢 Slow Query"):
@@ -149,28 +192,20 @@ elif page == "AI Chat":
 
         st.divider()
 
-        # Show chat history
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-        # Input box
         user_input = st.chat_input("Ask your DBA question...")
 
         if user_input:
+            check_usage(user)
+
             st.session_state.messages.append({"role": "user", "content": user_input})
 
             with st.chat_message("user"):
                 st.markdown(user_input)
 
-            # Usage limit
-            if st.session_state.usage >= 20:
-                st.warning("🚫 Free limit reached")
-                st.stop()
-
-            st.session_state.usage += 1
-
-            # AI response
             with st.chat_message("assistant"):
                 with st.spinner("Analyzing..."):
                     response = client.chat.completions.create(
@@ -186,7 +221,9 @@ elif page == "AI Chat":
 
             st.session_state.messages.append({"role": "assistant", "content": answer})
 
-    # ================= SQL ANALYZER =================
+            increment_usage(user)
+
+    # ================= SQL =================
     with tab2:
 
         st.subheader("⚡ SQL Performance Analyzer")
@@ -195,11 +232,7 @@ elif page == "AI Chat":
 
         if st.button("🚀 Analyze SQL"):
             if sql:
-                if st.session_state.usage >= 20:
-                    st.warning("🚫 Free limit reached")
-                    st.stop()
-
-                st.session_state.usage += 1
+                check_usage(user)
 
                 with st.spinner("Analyzing SQL..."):
                     response = client.chat.completions.create(
@@ -223,7 +256,9 @@ Provide:
                     st.success("Analysis Complete")
                     st.write(response.choices[0].message.content)
 
-    # ================= AWR ANALYZER =================
+                increment_usage(user)
+
+    # ================= AWR =================
     with tab3:
 
         st.subheader("📊 AWR Report Analyzer")
@@ -234,11 +269,7 @@ Provide:
             content = file.read().decode()[:15000]
 
             if st.button("🚀 Analyze AWR"):
-                if st.session_state.usage >= 20:
-                    st.warning("🚫 Free limit reached")
-                    st.stop()
-
-                st.session_state.usage += 1
+                check_usage(user)
 
                 with st.spinner("Analyzing AWR..."):
                     response = client.chat.completions.create(
@@ -262,8 +293,10 @@ Provide:
                     st.success("AWR Analysis Complete")
                     st.write(response.choices[0].message.content)
 
+                increment_usage(user)
+
 # ===============================
-# HISTORY
+# HISTORY (UNCHANGED)
 # ===============================
 elif page == "History":
     st.title("📜 History")
@@ -282,4 +315,4 @@ elif page == "History":
 # FOOTER
 # ===============================
 st.markdown("---")
-st.caption("🚀 AI DBA Assistant | ChatGPT + Analyzer Mode")
+st.caption("🚀 AI DBA Assistant | SaaS Ready")
