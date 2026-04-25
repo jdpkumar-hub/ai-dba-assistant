@@ -6,333 +6,283 @@ import pandas as pd
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
+from datetime import datetime
 
-# -------------------------------
+# ===============================
 # 🔐 SESSION INIT
-# -------------------------------
+# ===============================
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# -------------------------------
-# 👑 ADMIN CONFIG
-# -------------------------------
-ADMIN_EMAIL = "aidbaassistant@gmail.com"   # 👈 change to your email
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-from supabase import create_client
+if "usage" not in st.session_state:
+    st.session_state.usage = 0
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+# ===============================
+# 🧠 SYSTEM PROMPT (DBA EXPERT)
+# ===============================
+SYSTEM_PROMPT = """
+You are a Senior Oracle DBA with 20+ years experience.
 
-admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+Always provide:
+- Root Cause
+- Diagnostic Queries
+- Fix Steps
+- Risks
+- Best Practices
+
+Be precise and production-ready.
+"""
+
+# ===============================
+# 👑 ADMIN
+# ===============================
+ADMIN_EMAIL = "aidbaassistant@gmail.com"
 
 def is_admin(user):
     return user and user.email == ADMIN_EMAIL
-    
-# -------------------------------
-# PDF GENERATOR
-# -------------------------------
+
+# ===============================
+# 🔐 OPENAI
+# ===============================
+if "OPENAI_API_KEY" not in st.secrets:
+    st.error("Missing OPENAI_API_KEY")
+    st.stop()
+
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+# ===============================
+# 📄 PDF GENERATOR
+# ===============================
 def create_pdf(text):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer)
     styles = getSampleStyleSheet()
     story = []
 
-    lines = text.split("\n")
-    for line in lines:
-        line = line.strip()
-        if not line:
-            story.append(Spacer(1, 10))
-            continue
-
-        if line.startswith("###") or line.startswith("##"):
-            story.append(Paragraph(f"<b>{line.replace('#','').strip()}</b>", styles["Heading2"]))
-        else:
+    for line in text.split("\n"):
+        if line.strip():
             story.append(Paragraph(line, styles["Normal"]))
-
-        story.append(Spacer(1, 8))
+            story.append(Spacer(1, 8))
 
     doc.build(story)
     buffer.seek(0)
     return buffer
 
-# -------------------------------
-# 🔐 HANDLE OAUTH CALLBACK
-# -------------------------------
-params = st.query_params
+# ===============================
+# ⚡ USAGE LIMIT
+# ===============================
+def check_usage():
+    if st.session_state.usage >= 20:
+        st.warning("🚫 Free limit reached. Upgrade required.")
+        st.stop()
+    st.session_state.usage += 1
 
-# Password reset handler
-if "type" in params and params["type"] == "recovery":
-    st.session_state.reset_mode = True
-    st.query_params.clear()
-    st.rerun()
-
-# OAuth handler (FIXED)
-if "code" in params:
+# ===============================
+# 💾 SAVE HISTORY
+# ===============================
+def save_history(question, answer, user):
     try:
-        supabase.auth.exchange_code_for_session({
-            "auth_code": params["code"]
-        })
+        supabase.table("query_history").insert({
+            "user_email": user.email,
+            "question": question,
+            "answer": answer,
+            "created_at": datetime.utcnow().isoformat()
+        }).execute()
+    except:
+        pass
 
-        st.query_params.clear()
+# ===============================
+# ⚡ STREAMING OUTPUT
+# ===============================
+def stream_response(prompt):
+    placeholder = st.empty()
+    full_text = ""
 
-        user = get_user()
-        if user and not st.session_state.user:
-            st.session_state.user = user
-            st.rerun()
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=prompt
+    )
 
-    except Exception as e:
-        st.error(f"Login failed: {e}")
+    text = response.choices[0].message.content
 
-# -------------------------------
-# OPENAI CLIENT
-# -------------------------------
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    for word in text.split():
+        full_text += word + " "
+        placeholder.markdown(full_text)
 
-# -------------------------------
-# PAGE CONFIG
-# -------------------------------
-st.set_page_config(page_title="AI DBA Assistant", page_icon="🤖", layout="wide")
+    return text
 
-# -------------------------------
-# STYLE
-# -------------------------------
-st.markdown("""
-<style>
-.block-container { padding-top: 1rem; }
-
-.card {
-    background-color: white;
-    padding: 25px;
-    border-radius: 20px;
-    box-shadow: 0px 8px 24px rgba(0,0,0,0.08);
-}
-
-.right-panel { margin-top: 40px; }
-
-.feature {
-    padding: 12px;
-    border-radius: 12px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# -------------------------------
-# USER SESSION
-# -------------------------------
+# ===============================
+# 🔐 AUTH
+# ===============================
 user = get_user()
 if user:
     st.session_state.user = user
 
 user = st.session_state.user
 
-# ================= LOGIN =================
+# ===============================
+# LOGIN PAGE
+# ===============================
 if not user:
+    st.title("🚀 AI DBA Assistant")
 
-    col1, col2 = st.columns([1, 3])
-
-    with col1:
-        st.image("image/logo2.png", width=220)
-        st.markdown("## AI DBA Assistant")
-        st.caption("🚀 Smart Oracle Optimization Platform")
-
-        st.markdown("""
-<div class="feature">⚡ SQL Performance Tuning</div>
-<div class="feature">📊 AWR Analysis</div>
-<div class="feature">🤖 AI Recommendations</div>
-<div class="feature">🚀 Real-time Insights</div>
-""", unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="right-panel">', unsafe_allow_html=True)
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-
-        tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
-
-        with tab1:
-            login()
-
-        with tab2:
-            signup()
-
-        with tab3:
-            reset_password()
-
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    tab1, tab2, tab3 = st.tabs(["Login", "Signup", "Reset"])
+    with tab1: login()
+    with tab2: signup()
+    with tab3: reset_password()
 
     st.stop()
 
-# ================= MAIN =================
+# ===============================
+# SIDEBAR
+# ===============================
 with st.sidebar:
-    st.image("image/logo2.png", width=220)
-    pages = ["🏠 Dashboard", "💬 AI Chat", "📊 Reports", "📜 History", "⚙️ Settings"]
-
-    if is_admin(user):
-        pages.append("👑 Admin Panel")
-    page = st.radio("", pages)
+    st.title("AI DBA")
+    page = st.radio("", ["Dashboard", "AI Chat", "History", "Settings"])
     st.success(user.email)
     logout()
-# ================= DASHBOARD =================
-if page == "🏠 Dashboard":
+
+# ===============================
+# DASHBOARD
+# ===============================
+if page == "Dashboard":
     st.title("📊 Dashboard")
 
-    try:
-        data = supabase.table("query_history")\
-            .select("*")\
-            .eq("user_email", user.email)\
-            .execute()
+    data = supabase.table("query_history")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .execute()
 
-        df = pd.DataFrame(data.data)
+    df = pd.DataFrame(data.data)
 
-        if not df.empty:
-            col1, col2 = st.columns(2)
-            col1.metric("Total Queries", len(df))
+    if not df.empty:
+        st.metric("Total Queries", len(df))
+        st.line_chart(df)
 
-            df["created_at"] = pd.to_datetime(df["created_at"])
-            df["date"] = df["created_at"].dt.date
-            col2.metric("Active Days", df["date"].nunique())
+# ===============================
+# AI CHAT
+# ===============================
+elif page == "AI Chat":
 
-            st.subheader("📈 Queries Trend")
-            st.line_chart(df.groupby("date").size())
+    st.title("🤖 AI DBA Assistant")
 
-            def classify(q):
-                if "AWR" in q:
-                    return "AWR"
-                elif "select" in q.lower():
-                    return "SQL"
-                else:
-                    return "Chat"
+    # Prompt shortcuts
+    col1, col2, col3 = st.columns(3)
 
-            df["type"] = df["question"].apply(classify)
-            st.subheader("📊 Usage Breakdown")
-            st.bar_chart(df["type"].value_counts())
+    if col1.button("🐢 Slow Query"):
+        st.session_state.quick = "Why is my query slow in Oracle?"
 
-        else:
-            st.info("No data yet")
+    if col2.button("🔥 High CPU"):
+        st.session_state.quick = "Oracle high CPU troubleshooting"
 
-    except Exception:
-        st.error("Error loading dashboard")
+    if col3.button("💾 Tablespace Full"):
+        st.session_state.quick = "Tablespace full fix"
 
-# ================= AI CHAT =================
-elif page == "💬 AI Chat":
-    st.title("AI DBA Assistant")
+    mode = st.selectbox("Mode", ["Chat", "SQL Analyzer", "AWR Analyzer"])
 
-    tab1, tab2, tab3 = st.tabs(["💬 Chat", "⚡ SQL Analyzer", "📊 AWR Analyzer"])
-
-    with tab1:
-        question = st.text_input("Ask anything...")
+    # ================= CHAT =================
+    if mode == "Chat":
+        question = st.text_input("Ask DBA question", value=st.session_state.get("quick",""))
 
         if question:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": question}]
-            )
-            answer = response.choices[0].message.content
-            st.write(answer)
+            check_usage()
 
-            pdf_file = create_pdf(answer)
-            st.download_button("📄 Download Report", pdf_file, "report.pdf")
+            prompt = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": question}
+            ]
 
-    with tab2:
+            answer = stream_response(prompt)
+
+            save_history(question, answer, user)
+
+            pdf = create_pdf(answer)
+            st.download_button("📄 Download", pdf, "report.pdf")
+
+    # ================= SQL =================
+    elif mode == "SQL Analyzer":
         sql = st.text_area("Paste SQL")
 
-        if st.button("Analyze"):
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": sql}]
-            )
-            answer = response.choices[0].message.content
-            st.write(answer)
+        if st.button("Analyze SQL"):
+            check_usage()
 
-            pdf_file = create_pdf(answer)
-            st.download_button("📄 Download Report", pdf_file, "report.pdf")
+            prompt = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"""
+Analyze this Oracle SQL:
 
-    with tab3:
+{sql}
+
+Give:
+- Execution Plan Advice
+- Index Suggestions
+- Optimized Query
+"""}
+            ]
+
+            answer = stream_response(prompt)
+
+            save_history(sql, answer, user)
+
+    # ================= AWR =================
+    elif mode == "AWR Analyzer":
         file = st.file_uploader("Upload AWR", type=["txt"])
 
         if file:
-            content = file.read().decode("utf-8")[:15000]
+            content = file.read().decode()[:15000]
 
             if st.button("Analyze AWR"):
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": content}]
-                )
-                st.write(response.choices[0].message.content)
+                check_usage()
 
-# ================= HISTORY =================
-elif page == "📜 History":
-    st.title("📜 Query History")
+                prompt = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"""
+Analyze AWR:
 
-# ================= REPORTS =================
-elif page == "📊 Reports":
-    st.title("Reports")
+{content}
 
-# ================= SETTINGS =================
-elif page == "⚙️ Settings":
-    st.title("Settings")
-    
+Find:
+- Bottlenecks
+- Wait Events
+- Fix Recommendations
+"""}
+                ]
 
-# ================= ADMIN PANEL =================
-elif page == "👑 Admin Panel":
+                answer = stream_response(prompt)
 
-    st.title("👑 Admin Panel")
+                save_history("AWR Report", answer, user)
 
-    if not is_admin(user):
-        st.error("Access Denied")
-        st.stop()
+# ===============================
+# HISTORY
+# ===============================
+elif page == "History":
+    st.title("📜 History")
 
-    # ---------------- USERS ----------------
-    st.subheader("👥 All Users")
+    data = supabase.table("query_history")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .execute()
 
-    try:
-        users = admin_client.auth.admin.list_users()
+    df = pd.DataFrame(data.data)
 
-        user_data = []
-
-        for u in users:
-            user_data.append({
-                "Email": u.email,
-                "Created": u.created_at,
-                "Last Login": u.last_sign_in_at
-            })
-
-        df = pd.DataFrame(user_data)
+    if not df.empty:
         st.dataframe(df)
 
-    except Exception as e:
-        st.error(f"Error fetching users: {e}")
+# ===============================
+# SETTINGS
+# ===============================
+elif page == "Settings":
+    st.title("⚙️ Settings")
 
-    # ---------------- METRICS ----------------
-    st.subheader("📊 Activity Overview")
+    if st.button("Reset Usage"):
+        st.session_state.usage = 0
+        st.success("Reset done")
 
-    total_users = len(user_data)
-    active_users = sum(1 for u in user_data if u["Last Login"])
-
-    col1, col2 = st.columns(2)
-    col1.metric("Total Users", total_users)
-    col2.metric("Active Users", active_users)
-
-    # ---------------- DELETE USER ----------------
-    st.subheader("🗑️ Delete User")
-
-    email_to_delete = st.text_input("Enter email to delete")
-
-    if st.button("Delete User"):
-        try:
-            for u in users:
-                if u.email == email_to_delete:
-                    admin_client.auth.admin.delete_user(u.id)
-                    st.success("User deleted")
-                    st.rerun()
-
-            st.warning("User not found")
-
-        except Exception as e:
-            st.error(f"Delete failed: {e}")
-    
-# =========================
-# 📌 FOOTER
-# =========================
+# ===============================
+# FOOTER
+# ===============================
 st.markdown("---")
-st.caption("© AI DBA Assistant | Built by Pradarshan Kumar JD 🚀")
+st.caption("🚀 AI DBA Assistant - Production Ready")
