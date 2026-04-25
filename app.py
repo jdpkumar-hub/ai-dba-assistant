@@ -8,10 +8,9 @@ from io import BytesIO
 from datetime import datetime
 
 # ===============================
-# 🔐 OAUTH CALLBACK FIX
+# 🔐 OAUTH CALLBACK
 # ===============================
 params = st.query_params
-
 if "code" in params:
     try:
         supabase.auth.exchange_code_for_session({
@@ -31,6 +30,9 @@ if "user" not in st.session_state:
 if "usage" not in st.session_state:
     st.session_state.usage = 0
 
+if "quick_prompt" not in st.session_state:
+    st.session_state.quick_prompt = ""
+
 # ===============================
 # OPENAI
 # ===============================
@@ -44,36 +46,23 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # SYSTEM PROMPT
 # ===============================
 SYSTEM_PROMPT = """
-You are a Senior Oracle DBA.
+You are a Senior Oracle DBA with 20+ years experience.
 
-Provide:
-- Root cause
-- SQL fixes
-- Performance tuning
-- Best practices
+Always provide:
+- Root Cause
+- Diagnostic Queries
+- Fix Steps
+- Risks
+- Best Practices
 """
 
 # ===============================
 # PAGE CONFIG
 # ===============================
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="AI DBA Assistant", layout="wide")
 
 # ===============================
-# STYLE
-# ===============================
-st.markdown("""
-<style>
-.card {
-    background: white;
-    padding: 25px;
-    border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ===============================
-# GET USER
+# USER SESSION
 # ===============================
 user = get_user()
 if user:
@@ -82,10 +71,9 @@ if user:
 user = st.session_state.user
 
 # ===============================
-# LOGIN UI (LEFT + RIGHT)
+# LOGIN UI
 # ===============================
 if not user:
-
     col1, col2 = st.columns([1, 2])
 
     with col1:
@@ -101,18 +89,11 @@ if not user:
         """)
 
     with col2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-
+        st.markdown("### Login")
         tab1, tab2, tab3 = st.tabs(["Login", "Signup", "Reset"])
-
-        with tab1:
-            login()
-        with tab2:
-            signup()
-        with tab3:
-            reset_password()
-
-        st.markdown('</div>', unsafe_allow_html=True)
+        with tab1: login()
+        with tab2: signup()
+        with tab3: reset_password()
 
     st.stop()
 
@@ -149,11 +130,36 @@ elif page == "AI Chat":
 
     st.title("🤖 AI DBA Assistant")
 
+    # ---------------------------
+    # 🔥 CHAT SHORTCUT BUTTONS
+    # ---------------------------
+    st.subheader("⚡ Quick Actions")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    if col1.button("🐢 Slow Query"):
+        st.session_state.quick_prompt = "Why is my Oracle query slow? Provide tuning steps."
+
+    if col2.button("🔥 High CPU"):
+        st.session_state.quick_prompt = "Oracle database high CPU troubleshooting steps."
+
+    if col3.button("💾 Tablespace Full"):
+        st.session_state.quick_prompt = "Tablespace full issue resolution steps."
+
+    if col4.button("🔒 Lock Issue"):
+        st.session_state.quick_prompt = "How to identify and fix Oracle locking issues."
+
+    # ---------------------------
+    # MODE SELECT
+    # ---------------------------
     mode = st.selectbox("Mode", ["Chat", "SQL Analyzer", "AWR Analyzer"])
 
+    # ---------------------------
+    # COMMON FUNCTION
+    # ---------------------------
     def run_ai(prompt_text):
         if st.session_state.usage >= 20:
-            st.warning("Limit reached")
+            st.warning("🚫 Free limit reached")
             st.stop()
 
         st.session_state.usage += 1
@@ -168,20 +174,26 @@ elif page == "AI Chat":
 
         return response.choices[0].message.content
 
+    # ================= CHAT =================
     if mode == "Chat":
-        q = st.text_input("Ask DBA question")
+        question = st.text_input(
+            "Ask DBA question",
+            value=st.session_state.quick_prompt
+        )
 
-        if q:
-            ans = run_ai(q)
-            st.write(ans)
+        if question:
+            answer = run_ai(question)
+            st.write(answer)
 
+    # ================= SQL =================
     elif mode == "SQL Analyzer":
         sql = st.text_area("Paste SQL")
 
-        if st.button("Analyze"):
-            ans = run_ai(f"Analyze SQL:\n{sql}")
-            st.write(ans)
+        if st.button("Analyze SQL"):
+            answer = run_ai(f"Analyze Oracle SQL:\n{sql}")
+            st.write(answer)
 
+    # ================= AWR =================
     elif mode == "AWR Analyzer":
         file = st.file_uploader("Upload AWR", type=["txt"])
 
@@ -189,8 +201,8 @@ elif page == "AI Chat":
             content = file.read().decode()[:15000]
 
             if st.button("Analyze AWR"):
-                ans = run_ai(content)
-                st.write(ans)
+                answer = run_ai(content)
+                st.write(answer)
 
 # ===============================
 # HISTORY
