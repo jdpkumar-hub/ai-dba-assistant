@@ -9,7 +9,7 @@ SUPABASE_KEY = "sb_publishable_ZOfGu0PLriJqtJLdmk6Bkg_mJ3HrURB"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-REDIRECT_URL = "https://ai-oracle-assistant.streamlit.app"
+REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 
 # -------------------------------
 # LOGIN (EMAIL + GOOGLE)
