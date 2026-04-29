@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 from auth import login, signup, reset_password, logout, get_user, supabase
 from openai import OpenAI
