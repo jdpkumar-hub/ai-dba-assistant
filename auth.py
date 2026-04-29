@@ -89,7 +89,7 @@ def reset_password():
 
     if st.button("Send Reset Link"):
         try:
-            supabase.auth.reset_password_email(email)
+            supabase.auth.reset_password_for_email(email)
             st.success("Reset link sent to email")
         except:
             st.error("Failed to send reset email")
@@ -99,8 +99,10 @@ def reset_password():
 # -------------------------------
 def get_user():
     try:
-        res = supabase.auth.get_user()
-        return res.user if res else None
+        session = supabase.auth.get_session()
+        if session and session.user:
+            return session.user
+        return None
     except:
         return None
 

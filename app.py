@@ -26,7 +26,50 @@ def load_css():
     except:
         pass
 load_css()
+# ===============================
+# 🔐 OAUTH CALLBACK FIX
+# ===============================
+params = st.query_params
 
+if "code" in params:
+    try:
+        supabase.auth.exchange_code_for_session({
+            "auth_code": params["code"]
+        })
+
+        st.query_params.clear()
+
+        session = supabase.auth.get_session()
+        if session:
+            st.session_state.user = session.user
+
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"OAuth Error: {e}")
+# ===============================
+# 🔐 OAUTH CALLBACK FIX (CRITICAL)
+# ===============================
+params = st.query_params
+
+if "code" in params:
+    try:
+        supabase.auth.exchange_code_for_session({
+            "auth_code": params["code"]
+        })
+
+        # Clear URL params after login
+        st.query_params.clear()
+
+        # Save session
+        session = supabase.auth.get_session()
+        if session:
+            st.session_state.user = session.user
+
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"OAuth Error: {e}")
 # ================= SESSION FIX =================
 if "user" not in st.session_state:
     st.session_state.user = None
