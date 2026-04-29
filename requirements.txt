@@ -4,5 +4,6 @@ oracledb
 supabase
 pandas
 reportlab
- beautifulsoup4
+beautifulsoup4
 lxml
+matplotlib
