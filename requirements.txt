@@ -4,4 +4,4 @@ oracledb
 supabase
 pandas
 reportlab
-BeautifulSoup
+ 
