@@ -1,18 +1,31 @@
+```python
 import streamlit as st
 from auth import login, signup, reset_password, logout, get_user, supabase
 from openai import OpenAI
 import pandas as pd
+from bs4 import BeautifulSoup
 
+# ===============================
+# CONFIG
+# ===============================
 st.set_page_config(
     page_title="AI DBA Assistant",
     page_icon="🤖",
     layout="wide"
 )
 
+# ===============================
+# LOAD CSS
+# ===============================
 def load_css():
-    with open("styles.css") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-        
+    try:
+        with open("styles.css") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except:
+        pass
+
+load_css()
+
 # ===============================
 # 🔐 OAUTH CALLBACK
 # ===============================
@@ -60,16 +73,7 @@ Always provide:
 """
 
 # ===============================
-# USER SESSION
-# ===============================
-user = get_user()
-if user:
-    st.session_state.user = user
-
-user = st.session_state.user
-
-# ===============================
-# 🧠 USER PLAN FUNCTIONS (SAFE)
+# 🧠 USER PLAN FUNCTIONS
 # ===============================
 def ensure_user_plan(user):
     try:
@@ -127,7 +131,47 @@ def increment_usage(user):
         st.error(f"increment_usage error: {e}")
 
 # ===============================
-# LOGIN UI (UNCHANGED)
+# 🧠 AWR HTML PARSER
+# ===============================
+def parse_awr_html(content):
+    try:
+        soup = BeautifulSoup(content, "lxml")
+        text = soup.get_text(separator="\n")
+
+        sections = {
+            "load_profile": "",
+            "wait_events": "",
+            "top_sql": ""
+        }
+
+        lines = text.split("\n")
+
+        for i, line in enumerate(lines):
+            if "Load Profile" in line:
+                sections["load_profile"] = "\n".join(lines[i:i+40])
+
+            if "Top 10 Foreground Events" in line:
+                sections["wait_events"] = "\n".join(lines[i:i+40])
+
+            if "SQL ordered by Elapsed Time" in line:
+                sections["top_sql"] = "\n".join(lines[i:i+60])
+
+        return sections
+
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===============================
+# USER SESSION
+# ===============================
+user = get_user()
+if user:
+    st.session_state.user = user
+
+user = st.session_state.user
+
+# ===============================
+# LOGIN UI
 # ===============================
 if not user:
     col1, col2 = st.columns([1.4, 0.8])
@@ -159,11 +203,11 @@ ensure_user_plan(user)
 plan_data = get_user_plan(user)
 
 # ===============================
-# SIDEBAR (UNCHANGED + PLAN)
+# SIDEBAR
 # ===============================
 with st.sidebar:
     st.image("image/logo2.png", width=200)
-    page = st.radio("", [ "AI Chat","Dashboard", "History"])
+    page = st.radio("", ["AI Chat", "Dashboard", "History"])
 
     st.success(user.email)
     st.info(f"Plan: {plan_data['plan']} | Usage: {plan_data['usage_count']}")
@@ -247,14 +291,12 @@ elif page == "AI Chat":
                     st.markdown(answer)
 
             st.session_state.messages.append({"role": "assistant", "content": answer})
-
             increment_usage(user)
 
     # ================= SQL =================
     with tab2:
 
         st.subheader("⚡ SQL Performance Analyzer")
-
         sql = st.text_area("Paste your SQL query")
 
         if st.button("🚀 Analyze SQL"):
@@ -290,10 +332,26 @@ Provide:
 
         st.subheader("📊 AWR Report Analyzer")
 
-        file = st.file_uploader("Upload AWR report (.txt)", type=["txt"])
+        file = st.file_uploader("Upload AWR report (.txt / .html)", type=["txt", "html"])
 
         if file:
-            content = file.read().decode()[:15000]
+            raw_content = file.read()
+
+            if file.name.endswith(".html"):
+                parsed = parse_awr_html(raw_content.decode(errors="ignore"))
+
+                structured_content = f"""
+LOAD PROFILE:
+{parsed.get("load_profile")}
+
+WAIT EVENTS:
+{parsed.get("wait_events")}
+
+TOP SQL:
+{parsed.get("top_sql")}
+"""
+            else:
+                structured_content = raw_content.decode(errors="ignore")
 
             if st.button("🚀 Analyze AWR"):
                 check_usage(user)
@@ -306,19 +364,32 @@ Provide:
                             {"role": "user", "content": f"""
 Analyze this Oracle AWR report:
 
-{content}
+{structured_content}
 
 Provide:
 - Top Bottlenecks
 - Wait Events
-- CPU vs IO Issues
+- CPU vs IO
+- Problematic SQL
 - Recommendations
 """}
                         ]
                     )
 
+                    result = response.choices[0].message.content
+
                     st.success("AWR Analysis Complete")
-                    st.write(response.choices[0].message.content)
+                    st.write(result)
+
+                    # SAVE TO DB
+                    try:
+                        supabase.table("awr_reports").insert({
+                            "user_email": user.email,
+                            "file_name": file.name,
+                            "analysis": result
+                        }).execute()
+                    except Exception as e:
+                        st.error(f"DB Save Error: {e}")
 
                 increment_usage(user)
 
@@ -338,8 +409,21 @@ elif page == "History":
     if not df.empty:
         st.dataframe(df)
 
+    st.subheader("📊 AWR Reports")
+
+    awr_data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .execute()
+
+    awr_df = pd.DataFrame(awr_data.data)
+
+    if not awr_df.empty:
+        st.dataframe(awr_df[["file_name", "created_at"]])
+
 # ===============================
 # FOOTER
 # ===============================
 st.markdown("---")
-st.caption("🚀 AI DBA Assistant | Pradarshan Kumar JD | SaaS Ready")
+st.caption("🚀 AI DBA Assistant | JDP | SaaS Ready")
+```
