@@ -3,97 +3,36 @@ from auth import login, signup, reset_password, logout, get_user, supabase
 from openai import OpenAI
 import pandas as pd
 from bs4 import BeautifulSoup
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-import io
 
-# ===============================
-# CONFIG
-# ===============================
-st.set_page_config(
-    page_title="AI DBA Assistant",
-    page_icon="🤖",
-    layout="wide"
+# NEW IMPORTS
+import io, datetime, zipfile, smtplib
+import matplotlib.pyplot as plt
+from email.message import EmailMessage
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
 )
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter
 
-# ===============================
-# LOAD CSS
-# ===============================
+# ================= CONFIG =================
+st.set_page_config(page_title="AI DBA Assistant", page_icon="🤖", layout="wide")
+
+# ================= CSS =================
 def load_css():
     try:
         with open("styles.css") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
     except:
         pass
-
 load_css()
 
-
-# ===============================
-# LOAD CSS
-# ===============================
-
-def generate_pdf(text, title="AI DBA Report"):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-
-    styles = getSampleStyleSheet()
-    content = []
-
-    # Title
-    content.append(Paragraph(f"<b>{title}</b>", styles["Title"]))
-    content.append(Spacer(1, 12))
-
-    # Body (split lines to avoid overflow)
-    for line in text.split("\n"):
-        content.append(Paragraph(line, styles["Normal"]))
-        content.append(Spacer(1, 8))
-
-    doc.build(content)
-    buffer.seek(0)
-    return buffer
-    
-    
-# ===============================
-# 🔐 OAUTH CALLBACK
-# ===============================
-params = st.query_params
-if "code" in params:
-    try:
-        supabase.auth.exchange_code_for_session({
-            "auth_code": params["code"]
-        })
-        st.query_params.clear()
-        st.rerun()
-    except Exception as e:
-        st.error(f"Login failed: {e}")
-
-# ===============================
-# SESSION INIT
-# ===============================
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# ===============================
-# OPENAI
-# ===============================
-if "OPENAI_API_KEY" not in st.secrets:
-    st.error("Missing OPENAI_API_KEY")
-    st.stop()
-
+# ================= OPENAI =================
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# ===============================
-# SYSTEM PROMPT
-# ===============================
 SYSTEM_PROMPT = """
-You are a Senior Oracle DBA with 20+ years experience.
-
-Always provide:
+You are a Senior Oracle DBA.
+Provide:
 - Root Cause
 - Diagnostic Queries
 - Fix Steps
@@ -101,380 +40,201 @@ Always provide:
 - Best Practices
 """
 
-# ===============================
-# 🧠 USER PLAN FUNCTIONS
-# ===============================
-def ensure_user_plan(user):
+# ================= PDF + CHART =================
+def generate_chart(text):
+    cpu, io_wait = 60, 40
+    fig = plt.figure()
+    plt.bar(["CPU", "IO"], [cpu, io_wait])
+
+    buf = io.BytesIO()
+    plt.savefig(buf)
+    plt.close()
+    buf.seek(0)
+    return buf
+
+def generate_pdf(text, title):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+
+    content = []
+    content.append(Paragraph("<b>AI DBA Assistant</b>", styles["Title"]))
+    content.append(Paragraph(title, styles["Heading2"]))
+    content.append(Spacer(1, 10))
+
+    for line in text.split("\n"):
+        content.append(Paragraph(line, styles["Normal"]))
+
+    content.append(PageBreak())
+
+    chart = generate_chart(text)
+    content.append(Paragraph("CPU vs IO", styles["Heading2"]))
+    content.append(Image(chart, width=400, height=200))
+
+    doc.build(content)
+    buffer.seek(0)
+    return buffer
+
+# ================= EMAIL =================
+def send_email(user_email, pdf):
     try:
-        if not user or not user.email:
-            return
+        msg = EmailMessage()
+        msg["Subject"] = "AI DBA Report"
+        msg["From"] = st.secrets["EMAIL_USER"]
+        msg["To"] = user_email
 
-        res = supabase.table("user_plans")\
-            .select("*")\
-            .eq("email", user.email)\
-            .execute()
+        msg.set_content("Your report attached.")
 
-        if not res.data:
-            supabase.table("user_plans").insert({
-                "email": user.email,
-                "plan": "free",
-                "usage_count": 0
-            }).execute()
+        msg.add_attachment(
+            pdf.getvalue(),
+            maintype="application",
+            subtype="pdf",
+            filename="report.pdf"
+        )
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(st.secrets["EMAIL_USER"], st.secrets["EMAIL_PASS"])
+            smtp.send_message(msg)
 
     except Exception as e:
-        st.error(f"ensure_user_plan error: {e}")
+        st.error(f"Email error: {e}")
 
-def get_user_plan(user):
+# ================= STORAGE =================
+def upload_pdf(user, file_name, pdf):
     try:
-        res = supabase.table("user_plans")\
-            .select("*")\
-            .eq("email", user.email)\
-            .execute()
+        supabase.storage.from_("reports").upload(
+            f"{user.email}/{file_name}",
+            pdf.getvalue(),
+            {"content-type": "application/pdf"}
+        )
+    except Exception as e:
+        st.error(f"Upload error: {e}")
 
-        if not res.data:
-            return {"plan": "free", "usage_count": 0}
+def download_all(user):
+    try:
+        files = supabase.storage.from_("reports").list(user.email)
+        zip_buf = io.BytesIO()
 
-        return res.data[0]
+        with zipfile.ZipFile(zip_buf, "w") as z:
+            for f in files:
+                data = supabase.storage.from_("reports").download(
+                    f"{user.email}/{f['name']}"
+                )
+                z.writestr(f["name"], data)
+
+        zip_buf.seek(0)
+
+        st.download_button("📁 Download All Reports", zip_buf, "reports.zip")
 
     except Exception as e:
-        st.error(f"get_user_plan error: {e}")
-        return {"plan": "free", "usage_count": 0}
+        st.error(e)
 
-def check_usage(user):
-    data = get_user_plan(user)
-
-    if data["plan"] == "free" and data["usage_count"] >= 20:
-        st.warning("🚫 Free limit reached. Upgrade required.")
-        st.stop()
-
-def increment_usage(user):
+# ================= PLAN =================
+def is_pro(user):
     try:
-        data = get_user_plan(user)
-        count = data["usage_count"]
+        data = supabase.table("user_plans").select("*").eq("email", user.email).execute()
+        return data.data and data.data[0]["plan"] == "pro"
+    except:
+        return False
 
-        supabase.table("user_plans").update({
-            "usage_count": count + 1
-        }).eq("email", user.email).execute()
+# ================= AWR PARSER =================
+def parse_html(content):
+    soup = BeautifulSoup(content, "lxml")
+    return soup.get_text()
 
-    except Exception as e:
-        st.error(f"increment_usage error: {e}")
-
-# ===============================
-# 🧠 AWR HTML PARSER
-# ===============================
-def parse_awr_html(content):
-    try:
-        soup = BeautifulSoup(content, "lxml")
-        text = soup.get_text(separator="\n")
-
-        sections = {
-            "load_profile": "",
-            "wait_events": "",
-            "top_sql": ""
-        }
-
-        lines = text.split("\n")
-
-        for i, line in enumerate(lines):
-            if "Load Profile" in line:
-                sections["load_profile"] = "\n".join(lines[i:i+40])
-
-            if "Top 10 Foreground Events" in line:
-                sections["wait_events"] = "\n".join(lines[i:i+40])
-
-            if "SQL ordered by Elapsed Time" in line:
-                sections["top_sql"] = "\n".join(lines[i:i+60])
-
-        return sections
-
-    except Exception as e:
-        return {"error": str(e)}
-
-# ===============================
-# USER SESSION
-# ===============================
+# ================= USER =================
 user = get_user()
-if user:
-    st.session_state.user = user
-
-user = st.session_state.user
-
-# ===============================
-# LOGIN UI
-# ===============================
 if not user:
-    col1, col2 = st.columns([1.4, 0.8])
-
-    with col1:
-        st.image("image/logo2.png", width=220)
-        st.markdown("## AI DBA Assistant")
-        st.caption("🚀 Smart Oracle Optimization")
-
-        st.markdown("""
-        ⚡ SQL Tuning  
-        📊 AWR Analysis  
-        🤖 AI Insights  
-        🚀 Performance Fixes  
-        """)
-
-    with col2:
-        tab1, tab2, tab3 = st.tabs(["Login", "Signup", "Reset"])
-        with tab1: login()
-        with tab2: signup()
-        with tab3: reset_password()
-
+    tab1, tab2, tab3 = st.tabs(["Login", "Signup", "Reset"])
+    with tab1: login()
+    with tab2: signup()
+    with tab3: reset_password()
     st.stop()
 
-# ===============================
-# ENSURE USER PLAN
-# ===============================
-ensure_user_plan(user)
-plan_data = get_user_plan(user)
-
-# ===============================
-# SIDEBAR
-# ===============================
+# ================= SIDEBAR =================
 with st.sidebar:
-    st.image("image/logo2.png", width=200)
     page = st.radio("", ["AI Chat", "Dashboard", "History"])
-
     st.success(user.email)
-    st.info(f"Plan: {plan_data['plan']} | Usage: {plan_data['usage_count']}")
-
-    if plan_data["plan"] == "free":
-        st.warning("Upgrade to Pro 🚀")
-
     logout()
 
-# ===============================
-# DASHBOARD
-# ===============================
+# ================= DASHBOARD =================
 if page == "Dashboard":
-    st.title("📊 Dashboard")
+    st.title("Dashboard")
 
-    data = supabase.table("query_history")\
-        .select("*")\
-        .eq("user_email", user.email)\
-        .execute()
-
-    df = pd.DataFrame(data.data)
-
-    if not df.empty:
-        st.metric("Total Queries", len(df))
-        df["created_at"] = pd.to_datetime(df["created_at"])
-        st.line_chart(df.groupby(df["created_at"].dt.date).size())
-
-# ===============================
-# AI CHAT
-# ===============================
+# ================= AI CHAT =================
 elif page == "AI Chat":
+    st.title("AI DBA Assistant")
 
-    st.title("🤖 AI DBA Assistant")
+    tab1, tab2, tab3 = st.tabs(["Chat", "SQL", "AWR"])
 
-    tab1, tab2, tab3 = st.tabs(["💬 Chat", "⚡ SQL Analyzer", "📊 AWR Analyzer"])
-
-    # ================= CHAT =================
+    # -------- CHAT --------
     with tab1:
+        prompt = st.chat_input("Ask...")
+        if prompt:
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role":"system","content":SYSTEM_PROMPT},
+                          {"role":"user","content":prompt}]
+            )
+            st.write(res.choices[0].message.content)
 
-        col1, col2, col3, col4 = st.columns(4)
-
-        if col1.button("🐢 Slow Query"):
-            st.session_state.messages.append({"role": "user", "content": "Why is my Oracle query slow?"})
-
-        if col2.button("🔥 High CPU"):
-            st.session_state.messages.append({"role": "user", "content": "Oracle high CPU troubleshooting steps"})
-
-        if col3.button("💾 Tablespace Full"):
-            st.session_state.messages.append({"role": "user", "content": "Tablespace full issue fix"})
-
-        if col4.button("🔒 Lock Issue"):
-            st.session_state.messages.append({"role": "user", "content": "Oracle locking issue troubleshooting"})
-
-        st.divider()
-
-        for msg in st.session_state.messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-
-        user_input = st.chat_input("Ask your DBA question...")
-
-        if user_input:
-            check_usage(user)
-
-            st.session_state.messages.append({"role": "user", "content": user_input})
-
-            with st.chat_message("user"):
-                st.markdown(user_input)
-
-            with st.chat_message("assistant"):
-                with st.spinner("Analyzing..."):
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            *st.session_state.messages
-                        ]
-                    )
-
-                    answer = response.choices[0].message.content
-                    st.markdown(answer)
-
-            st.session_state.messages.append({"role": "assistant", "content": answer})
-            increment_usage(user)
-
-    # ================= SQL =================
+    # -------- SQL --------
     with tab2:
+        sql = st.text_area("SQL")
+        if st.button("Analyze SQL"):
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role":"user","content":sql}]
+            )
+            result = res.choices[0].message.content
+            st.write(result)
 
-        st.subheader("⚡ SQL Performance Analyzer")
-        sql = st.text_area("Paste your SQL query")
+            if is_pro(user):
+                pdf = generate_pdf(result, "SQL Report")
 
-        if st.button("🚀 Analyze SQL"):
-            if sql:
-                check_usage(user)
+                st.download_button("📄 PDF", pdf, "sql.pdf")
 
-                with st.spinner("Analyzing SQL..."):
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": f"""
-Analyze this Oracle SQL:
+                upload_pdf(user, "sql.pdf", pdf)
 
-{sql}
+                if st.button("📧 Email"):
+                    send_email(user.email, pdf)
+            else:
+                st.warning("🔒 Pro only")
 
-Provide:
-- Issues
-- Execution Plan Advice
-- Index Suggestions
-- Optimized Query
-"""}
-                        ]
-                    )
-
-                    st.success("Analysis Complete")
-                    result_text = response.choices[0].message.content
-
-                    st.write(result_text)
-
-                    # ✅ PDF DOWNLOAD (no UI change)
-                    pdf_file = generate_pdf(result_text, "SQL Analysis Report")
-
-                    st.download_button(
-                        label="📄 Download SQL Report",
-                        data=pdf_file,
-                        file_name="sql_analysis.pdf",
-                        mime="application/pdf"
-)
-
-                increment_usage(user)
-
-    # ================= AWR =================
+    # -------- AWR --------
     with tab3:
-
-        st.subheader("📊 AWR Report Analyzer")
-
-        file = st.file_uploader("Upload AWR report (.txt / .html)", type=["txt", "html"])
-
+        file = st.file_uploader("Upload AWR", ["txt", "html"])
         if file:
-            raw_content = file.read()
+            content = file.read().decode(errors="ignore")
 
             if file.name.endswith(".html"):
-                parsed = parse_awr_html(raw_content.decode(errors="ignore"))
+                content = parse_html(content)
 
-                structured_content = f"""
-LOAD PROFILE:
-{parsed.get("load_profile")}
+            if st.button("Analyze AWR"):
+                res = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role":"user","content":content}]
+                )
+                result = res.choices[0].message.content
+                st.write(result)
 
-WAIT EVENTS:
-{parsed.get("wait_events")}
+                if is_pro(user):
+                    pdf = generate_pdf(result, "AWR Report")
 
-TOP SQL:
-{parsed.get("top_sql")}
-"""
-            else:
-                structured_content = raw_content.decode(errors="ignore")
+                    st.download_button("📄 PDF", pdf, "awr.pdf")
 
-            if st.button("🚀 Analyze AWR"):
-                check_usage(user)
+                    upload_pdf(user, "awr.pdf", pdf)
 
-                with st.spinner("Analyzing AWR..."):
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": f"""
-Analyze this Oracle AWR report:
+                    if st.button("📧 Email"):
+                        send_email(user.email, pdf)
+                else:
+                    st.warning("🔒 Pro only")
 
-{structured_content}
-
-Provide:
-- Top Bottlenecks
-- Wait Events
-- CPU vs IO
-- Problematic SQL
-- Recommendations
-"""}
-                        ]
-                    )
-
-                    result = response.choices[0].message.content
-
-                    st.success("AWR Analysis Complete")
-                    st.write(result)
-
-                    # ✅ PDF DOWNLOAD (no UI change)
-                    pdf_file = generate_pdf(result, "AWR Analysis Report")
-
-                    st.download_button(
-                        label="📄 Download AWR Report",
-                        data=pdf_file,
-                        file_name="awr_analysis.pdf",
-                        mime="application/pdf"
-                    )
-
-                    # SAVE TO DB
-                    try:
-                        supabase.table("awr_reports").insert({
-                            "user_email": user.email,
-                            "file_name": file.name,
-                            "analysis": result
-                        }).execute()
-                    except Exception as e:
-                        st.error(f"DB Save Error: {e}")
-
-                increment_usage(user)
-
-# ===============================
-# HISTORY
-# ===============================
+# ================= HISTORY =================
 elif page == "History":
-    st.title("📜 History")
+    st.title("History")
+    download_all(user)
 
-    data = supabase.table("query_history")\
-        .select("*")\
-        .eq("user_email", user.email)\
-        .execute()
-
-    df = pd.DataFrame(data.data)
-
-    if not df.empty:
-        st.dataframe(df)
-
-    st.subheader("📊 AWR Reports")
-
-    awr_data = supabase.table("awr_reports")\
-        .select("*")\
-        .eq("user_email", user.email)\
-        .execute()
-
-    awr_df = pd.DataFrame(awr_data.data)
-
-    if not awr_df.empty:
-        st.dataframe(awr_df[["file_name", "created_at"]])
-
-# ===============================
-# FOOTER
-# ===============================
+# ================= FOOTER =================
 st.markdown("---")
-st.caption("🚀 AI DBA Assistant | JDP | SaaS Ready")
-
+st.caption("AI DBA Assistant SaaS 🚀")
