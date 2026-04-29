@@ -425,4 +425,4 @@ elif page == "History":
 # ===============================
 st.markdown("---")
 st.caption("🚀 AI DBA Assistant | JDP | SaaS Ready")
-```
+
