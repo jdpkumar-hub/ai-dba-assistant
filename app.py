@@ -3,6 +3,16 @@ from auth import login, signup, reset_password, logout, get_user, supabase
 from openai import OpenAI
 import pandas as pd
 
+st.set_page_config(
+    page_title="AI DBA Assistant",
+    page_icon="🤖",
+    layout="wide"
+)
+
+def load_css():
+    with open("styles.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+        
 # ===============================
 # 🔐 OAUTH CALLBACK
 # ===============================
