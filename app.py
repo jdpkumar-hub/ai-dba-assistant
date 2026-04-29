@@ -120,7 +120,7 @@ def increment_usage(user):
 # LOGIN UI (UNCHANGED)
 # ===============================
 if not user:
-    col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns([1.1, 1])
 
     with col1:
         st.image("image/logo2.png", width=220)
@@ -153,7 +153,7 @@ plan_data = get_user_plan(user)
 # ===============================
 with st.sidebar:
     st.image("image/logo2.png", width=200)
-    page = st.radio("", ["Dashboard", "AI Chat", "History"])
+    page = st.radio("", [ "AI Chat","Dashboard", "History"])
 
     st.success(user.email)
     st.info(f"Plan: {plan_data['plan']} | Usage: {plan_data['usage_count']}")
@@ -332,4 +332,4 @@ elif page == "History":
 # FOOTER
 # ===============================
 st.markdown("---")
-st.caption("🚀 AI DBA Assistant | SaaS Ready")
+st.caption("🚀 AI DBA Assistant | Pradarshan Kumar JD | SaaS Ready")
