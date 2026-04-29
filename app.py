@@ -130,7 +130,7 @@ def increment_usage(user):
 # LOGIN UI (UNCHANGED)
 # ===============================
 if not user:
-    col1, col2 = st.columns([1.1, 1])
+    col1, col2 = st.columns([1.4, 0.8])
 
     with col1:
         st.image("image/logo2.png", width=220)
