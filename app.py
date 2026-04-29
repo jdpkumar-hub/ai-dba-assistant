@@ -3,6 +3,10 @@ from auth import login, signup, reset_password, logout, get_user, supabase
 from openai import OpenAI
 import pandas as pd
 from bs4 import BeautifulSoup
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+import io
 
 # ===============================
 # CONFIG
@@ -25,6 +29,32 @@ def load_css():
 
 load_css()
 
+
+# ===============================
+# LOAD CSS
+# ===============================
+
+def generate_pdf(text, title="AI DBA Report"):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+
+    styles = getSampleStyleSheet()
+    content = []
+
+    # Title
+    content.append(Paragraph(f"<b>{title}</b>", styles["Title"]))
+    content.append(Spacer(1, 12))
+
+    # Body (split lines to avoid overflow)
+    for line in text.split("\n"):
+        content.append(Paragraph(line, styles["Normal"]))
+        content.append(Spacer(1, 8))
+
+    doc.build(content)
+    buffer.seek(0)
+    return buffer
+    
+    
 # ===============================
 # 🔐 OAUTH CALLBACK
 # ===============================
@@ -322,7 +352,19 @@ Provide:
                     )
 
                     st.success("Analysis Complete")
-                    st.write(response.choices[0].message.content)
+                    result_text = response.choices[0].message.content
+
+                    st.write(result_text)
+
+                    # ✅ PDF DOWNLOAD (no UI change)
+                    pdf_file = generate_pdf(result_text, "SQL Analysis Report")
+
+                    st.download_button(
+                        label="📄 Download SQL Report",
+                        data=pdf_file,
+                        file_name="sql_analysis.pdf",
+                        mime="application/pdf"
+)
 
                 increment_usage(user)
 
@@ -379,6 +421,16 @@ Provide:
 
                     st.success("AWR Analysis Complete")
                     st.write(result)
+
+                    # ✅ PDF DOWNLOAD (no UI change)
+                    pdf_file = generate_pdf(result, "AWR Analysis Report")
+
+                    st.download_button(
+                        label="📄 Download AWR Report",
+                        data=pdf_file,
+                        file_name="awr_analysis.pdf",
+                        mime="application/pdf"
+                    )
 
                     # SAVE TO DB
                     try:
