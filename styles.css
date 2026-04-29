@@ -32,3 +32,8 @@ html, body, [data-testid="stAppViewContainer"] {
 .right-panel {
     margin-top: 20px;
 }
+
+.right-panel {
+    margin-left: -40px;   /* 🔥 pulls login left */
+    margin-top: 30px;
+}
