@@ -103,9 +103,9 @@ def generate_pdf(text, title):
         
 # ================= AWR=================         
    
-     def parse_awr_html(content):
-            soup = BeautifulSoup(content, "lxml")
-            return soup.get_text()
+def parse_awr_html(content):
+      soup = BeautifulSoup(content, "lxml")
+      return soup.get_text()
             
             
 # ================= SIDEBAR =================
