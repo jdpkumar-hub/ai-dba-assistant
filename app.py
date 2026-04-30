@@ -8,7 +8,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
-from awr_parser import parse_html, extract_awr_sections, build_awr_prompt
+from awr_parser import parse_html, extract_metrics, classify_bottleneck, build_awr_prompt
 
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
@@ -157,17 +157,20 @@ if page == "AI Chat":
 
                 content = file.read().decode(errors="ignore")
 
-                # HTML handling
                 if file.name.endswith(".html"):
                     content = parse_html(content)
 
-                # Extract sections
-                sections = extract_awr_sections(content)
+                # 🔥 Extract real metrics
+                metrics = extract_metrics(content)
 
-                # Build structured prompt
-                prompt = build_awr_prompt(sections)
+                # 🔥 Classify
+                bottleneck = classify_bottleneck(metrics)
 
-                # AI call
+                st.info(f"Detected Bottleneck: {bottleneck}")
+
+                # 🔥 Build smart prompt
+                prompt = build_awr_prompt(metrics)
+
                 res = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
@@ -177,17 +180,8 @@ if page == "AI Chat":
                 )
 
                 result = res.choices[0].message.content
+
                 st.write(result)
-
-                # PDF
-                pdf = generate_pdf(result, "AWR Report")
-
-                st.download_button(
-                    "📄 Download AWR PDF",
-                    pdf,
-                    file_name="awr_report.pdf",
-                    mime="application/pdf"
-                )
                 
     # -------- AWR --------
 
