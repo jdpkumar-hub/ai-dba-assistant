@@ -98,7 +98,7 @@ def generate_pdf(text, title):
 # ================= SIDEBAR =================
 with st.sidebar:
     sidebar_logo()
-    page = st.radio("", ["AI Chat", "Dashboard", "History"])
+    page = st.radio("", ["AI Chat", "Dashboard", "History", "Trends"])
     st.success(user.email)
     logout()
 
@@ -267,7 +267,90 @@ if page == "History":
 
         if st.button(f"View {row['id']}", key=row["id"]):
             st.write(row["result"])
+ 
+# ================= TRENDS =================
+if page == "Trends":
 
+    st.title("📈 Performance Trends")
+
+    data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .order("created_at")\
+        .execute()
+
+    if not data.data:
+        st.warning("No data available")
+        st.stop()
+
+    import pandas as pd
+    import json
+
+    df = pd.DataFrame(data.data)
+
+    # ================= CLEAN METRICS =================
+    def parse_metrics(m):
+        if isinstance(m, dict):
+            return m
+        try:
+            return json.loads(m)
+        except:
+            return {}
+
+    df["metrics"] = df["metrics"].apply(parse_metrics)
+
+    df["cpu_pct"] = df["metrics"].apply(lambda x: x.get("cpu_pct", 0))
+
+    df["created_at"] = pd.to_datetime(df["created_at"])
+    df = df.sort_values("created_at")   # ✅ FIX
+
+    # ================= ANOMALY DETECTION =================
+    df["cpu_avg"] = df["cpu_pct"].rolling(window=3, min_periods=1).mean()
+
+    df["cpu_spike"] = df["cpu_pct"] > (df["cpu_avg"] + 20)
+    df["is_critical"] = df["score"] < 60
+
+    # ================= ALERTS =================
+    st.subheader("🚨 Alerts")
+
+    cpu_spikes = df[df["cpu_spike"]]
+    criticals = df[df["is_critical"]]
+
+    if cpu_spikes.empty and criticals.empty:
+        st.success("✅ No anomalies detected")
+    else:
+        for _, row in cpu_spikes.iterrows():
+            st.error(f"🔥 CPU Spike at {row['created_at']} (CPU: {row['cpu_pct']}%)")
+
+        for _, row in criticals.iterrows():
+            st.error(f"🚨 Critical Score {row['score']} at {row['created_at']}")
+
+    # ================= CPU TREND =================
+    st.subheader("🧠 CPU Usage Trend")
+
+    st.line_chart(df.set_index("created_at")["cpu_pct"])
+
+    if not cpu_spikes.empty:
+        st.warning(f"{len(cpu_spikes)} CPU spikes detected")
+
+    # ================= HEALTH TREND =================
+    st.subheader("💊 Health Score Trend")
+
+    st.line_chart(df.set_index("created_at")["score"])
+
+    critical_count = len(criticals)
+
+    if critical_count > 0:
+        st.error(f"🚨 {critical_count} critical performance events detected")
+
+    # ================= DATA TABLE =================
+    st.subheader("📋 Data")
+
+    st.dataframe(df[["created_at", "cpu_pct", "score", "level", "bottleneck"]])
+    # ================= TABLE VIEW =================
+    st.subheader("📋 Raw Data")
+
+    st.dataframe(df[["created_at", "cpu_pct", "score", "level", "bottleneck"]])
 # ================= FOOTER =================
 st.markdown("---")
 st.caption("🚀 AI DBA Assistant | JDP | SAAS Application")
