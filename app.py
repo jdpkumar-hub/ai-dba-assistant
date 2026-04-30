@@ -1,10 +1,9 @@
 import streamlit as st
 from auth import login, signup, reset_password, logout, get_user, supabase
 from openai import OpenAI
-import pandas as pd
 from bs4 import BeautifulSoup
-
 import io
+
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
@@ -21,34 +20,16 @@ def load_css():
         pass
 
 load_css()
-# ===============================
-# 🔐 GOOGLE OAUTH HANDLER
-# ===============================
-params = st.query_params
 
+# ================= OAUTH HANDLER =================
+params = st.query_params
 if "code" in params:
     try:
         supabase.auth.exchange_code_for_session({
             "auth_code": params["code"]
         })
-
         st.query_params.clear()
-
         st.session_state.user = supabase.auth.get_session().user
-
-        st.rerun()
-
-    except Exception as e:
-        st.error(f"OAuth Error: {e}")
-
-# ================= OAUTH FIX =================
-params = st.query_params
-if "code" in params:
-    try:
-        supabase.auth.exchange_code_for_session({
-            "auth_code": params["code"]
-        })
-        st.query_params.clear()
         st.rerun()
     except Exception as e:
         st.error(f"OAuth Error: {e}")
@@ -83,6 +64,15 @@ if not user:
 # ================= OPENAI =================
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
+SYSTEM_PROMPT = """
+You are a Senior Oracle DBA.
+Provide:
+- Root Cause
+- Fix
+- Risks
+- Best Practices
+"""
+
 # ================= PDF =================
 def generate_pdf(text, title):
     buffer = io.BytesIO()
@@ -94,20 +84,18 @@ def generate_pdf(text, title):
     content.append(Spacer(1, 10))
 
     for line in text.split("\n"):
-        content.append(Paragraph(line, styles["Normal"]))
+        if line.strip():
+            content.append(Paragraph(line, styles["Normal"]))
 
     doc.build(content)
     buffer.seek(0)
     return buffer
 
-        
-# ================= AWR=================         
-   
+# ================= AWR PARSER =================
 def parse_awr_html(content):
-      soup = BeautifulSoup(content, "lxml")
-      return soup.get_text()
-            
-            
+    soup = BeautifulSoup(content, "lxml")
+    return soup.get_text()
+
 # ================= SIDEBAR =================
 with st.sidebar:
     page = st.radio("", ["AI Chat", "Dashboard"])
@@ -119,45 +107,46 @@ if page == "AI Chat":
 
     tab1, tab2, tab3 = st.tabs(["Chat", "SQL", "AWR"])
 
-        # -------- CHAT --------
-        with tab1:
-            prompt = st.chat_input("Ask...")
-            if prompt:
-                res = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                st.write(res.choices[0].message.content)
+    # -------- CHAT --------
+    with tab1:
+        prompt = st.chat_input("Ask...")
+        if prompt:
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            st.write(res.choices[0].message.content)
 
-        # -------- SQL --------
-        with tab2:
-            sql = st.text_area("Enter SQL")
+    # -------- SQL --------
+    with tab2:
+        sql = st.text_area("Enter SQL")
 
-            if st.button("Analyze SQL"):
-                res = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": sql}]
-                )
+        if st.button("Analyze SQL"):
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": sql}]
+            )
 
-                result = res.choices[0].message.content
-                st.write(result)
+            result = res.choices[0].message.content
+            st.write(result)
 
-                pdf = generate_pdf(result, "SQL Report")
+            pdf = generate_pdf(result, "SQL Report")
 
-                st.download_button(
-                    "📄 Download PDF",
-                    pdf,
-                    file_name="sql_report.pdf",
-                    mime="application/pdf"
-                )
-                
-                
-         with tab3:
-            st.subheader("📊 AWR Analyzer")
+            st.download_button(
+                "📄 Download PDF",
+                pdf,
+                file_name="sql_report.pdf",
+                mime="application/pdf"
+            )
 
-            file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+    # -------- AWR --------
+    with tab3:
+        st.subheader("📊 AWR Analyzer")
 
-            if file and st.button("Analyze AWR"):
+        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+
+        if file:
+            if st.button("Analyze AWR"):
                 content = file.read().decode(errors="ignore")
 
                 if file.name.endswith(".html"):
@@ -172,15 +161,17 @@ if page == "AI Chat":
                 )
 
                 result = res.choices[0].message.content
-
                 st.write(result)
 
-            # ✅ PDF download
-            pdf = generate_pdf(result, "AWR Report")
+                pdf = generate_pdf(result, "AWR Report")
 
-            st.download_button(
-                "📄 Download AWR PDF",
-                pdf,
-                file_name="awr_report.pdf",
-                mime="application/pdf"
-            )
+                st.download_button(
+                    "📄 Download AWR PDF",
+                    pdf,
+                    file_name="awr_report.pdf",
+                    mime="application/pdf"
+                )
+
+# ================= FOOTER =================
+st.markdown("---")
+st.caption("🚀 AI DBA Assistant")
