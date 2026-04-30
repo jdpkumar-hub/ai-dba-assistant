@@ -8,6 +8,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
+from awr_parser import parse_html, extract_awr_sections, build_awr_prompt
 
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
@@ -145,38 +146,50 @@ if page == "AI Chat":
             )
 
     # -------- AWR --------
-    with tab3:
-        st.subheader("📊 AWR Analyzer")
+     
+     with tab3:
+    st.subheader("📊 AWR Analyzer")
 
-        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+    file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
 
-        if file:
-            if st.button("Analyze AWR"):
-                content = file.read().decode(errors="ignore")
+    if file:
+        if st.button("Analyze AWR"):
 
-                if file.name.endswith(".html"):
-                    content = parse_awr_html(content)
+            content = file.read().decode(errors="ignore")
 
-                res = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": f"Analyze this AWR:\n{content}"}
-                    ]
-                )
+            # HTML handling
+            if file.name.endswith(".html"):
+                content = parse_html(content)
 
-                result = res.choices[0].message.content
-                st.write(result)
+            # Extract sections
+            sections = extract_awr_sections(content)
 
-                pdf = generate_pdf(result, "AWR Report")
+            # Build structured prompt
+            prompt = build_awr_prompt(sections)
 
-                st.download_button(
-                    "📄 Download AWR PDF",
-                    pdf,
-                    file_name="awr_report.pdf",
-                    mime="application/pdf"
-                )
+            # AI call
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            result = res.choices[0].message.content
+            st.write(result)
+
+            # PDF
+            pdf = generate_pdf(result, "AWR Report")
+
+            st.download_button(
+                "📄 Download AWR PDF",
+                pdf,
+                file_name="awr_report.pdf",
+                mime="application/pdf"
+            )
+    # -------- AWR --------
 
 # ================= FOOTER =================
 st.markdown("---")
-st.caption("🚀 AI DBA Assistant")
+st.caption("🚀 AI DBA Assistant | JDP | SAAS Application ")
