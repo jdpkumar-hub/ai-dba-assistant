@@ -109,7 +109,8 @@ with st.sidebar:
 # ================= MAIN =================
 if page == "AI Chat":
 
-    tab1, tab2, tab3 = st.tabs(["Chat", "SQL", "AWR"])
+   # tab1, tab2, tab3 = st.tabs(["Chat", "SQL", "AWR"])
+    tab1, tab2, tab3 = st.tabs(["💬 Chat", "⚡ SQL Analyzer", "📊 AWR Analyzer"])
 
     # -------- CHAT --------
     with tab1:
