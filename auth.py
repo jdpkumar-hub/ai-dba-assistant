@@ -33,18 +33,14 @@ def login():
 
     st.divider()
 
-    # Google Login
-            
-            st.markdown("### Or")
+    # Google login
+    res = supabase.auth.sign_in_with_oauth({
+        "provider": "google",
+        "options": {"redirect_to": REDIRECT_URL}
+    })
 
-            res = supabase.auth.sign_in_with_oauth({
-                "provider": "google",
-                "options": {"redirect_to": REDIRECT_URL}
-            })
-
-            if res.url:
-                st.link_button("🔵 Continue with Google", res.url)
-        
+    if res.url:
+        st.link_button("🔵 Continue with Google", res.url)
 
 # ================= SIGNUP =================
 def signup():
@@ -68,7 +64,6 @@ def signup():
         except Exception:
             st.error("Signup failed")
 
-
 # ================= RESET =================
 def reset_password():
     st.markdown("## 🔑 Reset Password")
@@ -82,7 +77,6 @@ def reset_password():
         except Exception:
             st.error("Failed to send email")
 
-
 # ================= GET USER =================
 def get_user():
     try:
@@ -92,7 +86,6 @@ def get_user():
         return None
     except Exception:
         return None
-
 
 # ================= LOGOUT =================
 def logout():
