@@ -132,3 +132,35 @@ Tasks:
 4. Highlight risks
 5. Suggest tuning actions
 """
+
+def calculate_health_score(metrics, bottleneck):
+
+    score = 100
+
+    cpu = metrics.get("cpu_pct") or 0
+
+    if cpu > 80:
+        score -= 40
+    elif cpu > 60:
+        score -= 25
+
+    if "IO_BOUND" in bottleneck:
+        score -= 20
+
+    if "CONCURRENCY" in bottleneck:
+        score -= 15
+
+    if "COMMIT" in bottleneck:
+        score -= 10
+
+    # clamp
+    score = max(0, score)
+
+    if score > 80:
+        level = "Healthy"
+    elif score > 60:
+        level = "Warning"
+    else:
+        level = "Critical"
+
+    return score, level

@@ -7,14 +7,16 @@ import io
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
+
 from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
-from awr_parser import parse_html, extract_metrics, classify_bottleneck, build_awr_prompt
+from awr_parser import parse_html, extract_metrics, classify_bottleneck, build_awr_prompt, calculate_health_score
+from pdf_generator import generate_awr_pdf
 
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
 apply_ui_styles()
 render_centered_title()
- 
+
 # ================= CSS =================
 def load_css():
     try:
@@ -25,13 +27,11 @@ def load_css():
 
 load_css()
 
-# ================= OAUTH HANDLER =================
+# ================= OAUTH =================
 params = st.query_params
 if "code" in params:
     try:
-        supabase.auth.exchange_code_for_session({
-            "auth_code": params["code"]
-        })
+        supabase.auth.exchange_code_for_session({"auth_code": params["code"]})
         st.query_params.clear()
         st.session_state.user = supabase.auth.get_session().user
         st.rerun()
@@ -48,7 +48,7 @@ if user:
 
 user = st.session_state.user
 
-# ================= LOGIN UI =================
+# ================= LOGIN =================
 if not user:
     col1, col2 = st.columns([0.8, 2.0])
 
@@ -77,7 +77,7 @@ Provide:
 - Best Practices
 """
 
-# ================= PDF =================
+# ================= SIMPLE PDF =================
 def generate_pdf(text, title):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
@@ -95,14 +95,9 @@ def generate_pdf(text, title):
     buffer.seek(0)
     return buffer
 
-# ================= AWR PARSER =================
-def parse_awr_html(content):
-    soup = BeautifulSoup(content, "lxml")
-    return soup.get_text()
-
 # ================= SIDEBAR =================
 with st.sidebar:
-    sidebar_logo()   # ✅ CORRECT PLACE
+    sidebar_logo()
     page = st.radio("", ["AI Chat", "Dashboard"])
     st.success(user.email)
     logout()
@@ -110,7 +105,6 @@ with st.sidebar:
 # ================= MAIN =================
 if page == "AI Chat":
 
-   # tab1, tab2, tab3 = st.tabs(["Chat", "SQL", "AWR"])
     tab1, tab2, tab3 = st.tabs(["💬 Chat", "⚡ SQL Analyzer", "📊 AWR Analyzer"])
 
     # -------- CHAT --------
@@ -139,14 +133,13 @@ if page == "AI Chat":
             pdf = generate_pdf(result, "SQL Report")
 
             st.download_button(
-                "📄 Download PDF",
+                "📄 Download SQL Report",
                 pdf,
                 file_name="sql_report.pdf",
                 mime="application/pdf"
             )
 
     # -------- AWR --------
-     
     with tab3:
         st.subheader("📊 AWR Analyzer")
 
@@ -160,15 +153,18 @@ if page == "AI Chat":
                 if file.name.endswith(".html"):
                     content = parse_html(content)
 
-                # 🔥 Extract real metrics
+                # Extract metrics
                 metrics = extract_metrics(content)
 
-                # 🔥 Classify
+                # Classify bottleneck
                 bottleneck = classify_bottleneck(metrics)
-
                 st.info(f"Detected Bottleneck: {bottleneck}")
 
-                # 🔥 Build smart prompt
+                # Health score
+                score, level = calculate_health_score(metrics, bottleneck)
+                st.metric("Health Score", f"{score} ({level})")
+
+                # Build AI prompt
                 prompt = build_awr_prompt(metrics)
 
                 res = client.chat.completions.create(
@@ -180,11 +176,18 @@ if page == "AI Chat":
                 )
 
                 result = res.choices[0].message.content
-
                 st.write(result)
-                
-    # -------- AWR --------
+
+                # ✅ CORRECT PDF (AWR)
+                pdf = generate_awr_pdf(result, metrics, score, level)
+
+                st.download_button(
+                    "📄 Download AWR Report",
+                    pdf,
+                    file_name="awr_report.pdf",
+                    mime="application/pdf"
+                )
 
 # ================= FOOTER =================
 st.markdown("---")
-st.caption("🚀 AI DBA Assistant | JDP | SAAS Application ")
+st.caption("🚀 AI DBA Assistant | JDP | SAAS Application")
