@@ -57,7 +57,7 @@ if not user:
         st.caption("🚀 Smart Oracle Optimization")
 
     with col2:
-         tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
+        tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
         with tab1: login()
         with tab2: signup()
         with tab3: reset_password()
