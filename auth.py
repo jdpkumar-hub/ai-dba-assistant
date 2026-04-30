@@ -28,20 +28,23 @@ def login():
                 st.success("Login successful")
                 st.rerun()
 
-        except:
+        except Exception:
             st.error("Invalid credentials")
 
     st.divider()
 
-    # Google OAuth
+    # Google Login
     if st.button("🔵 Continue with Google"):
         res = supabase.auth.sign_in_with_oauth({
             "provider": "google",
-            "options": {"redirect_to": REDIRECT_URL}
+            "options": {
+                "redirect_to": REDIRECT_URL
+            }
         })
 
         if res.url:
-        st.link_button("👉 Click to continue Google Login", res.url)
+            st.link_button("👉 Continue with Google", res.url)
+
 
 # ================= SIGNUP =================
 def signup():
@@ -62,8 +65,9 @@ def signup():
                 "password": password
             })
             st.success("Check email for verification link")
-        except:
+        except Exception:
             st.error("Signup failed")
+
 
 # ================= RESET =================
 def reset_password():
@@ -75,8 +79,9 @@ def reset_password():
         try:
             supabase.auth.reset_password_for_email(email)
             st.success("Reset link sent")
-        except:
-            st.error("Error sending email")
+        except Exception:
+            st.error("Failed to send email")
+
 
 # ================= GET USER =================
 def get_user():
@@ -85,15 +90,16 @@ def get_user():
         if session and session.user:
             return session.user
         return None
-    except:
+    except Exception:
         return None
+
 
 # ================= LOGOUT =================
 def logout():
     if st.button("🚪 Logout"):
         try:
             supabase.auth.sign_out()
-        except:
+        except Exception:
             pass
 
         st.session_state.clear()
