@@ -147,7 +147,7 @@ if page == "AI Chat":
 
     # -------- AWR --------
      
-   with tab3:
+    with tab3:
         st.subheader("📊 AWR Analyzer")
 
         file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
@@ -188,7 +188,8 @@ if page == "AI Chat":
                     file_name="awr_report.pdf",
                     mime="application/pdf"
                 )
-        # -------- AWR --------
+                
+    # -------- AWR --------
 
 # ================= FOOTER =================
 st.markdown("---")
