@@ -117,63 +117,63 @@ with st.sidebar:
 # ================= MAIN =================
 if page == "AI Chat":
 
-tab1, tab2, tab3 = st.tabs(["Chat", "SQL", "AWR"])
+    tab1, tab2, tab3 = st.tabs(["Chat", "SQL", "AWR"])
 
-    # -------- CHAT --------
-    with tab1:
-        prompt = st.chat_input("Ask...")
-        if prompt:
-            res = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            st.write(res.choices[0].message.content)
+        # -------- CHAT --------
+        with tab1:
+            prompt = st.chat_input("Ask...")
+            if prompt:
+                res = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                st.write(res.choices[0].message.content)
 
-    # -------- SQL --------
-    with tab2:
-        sql = st.text_area("Enter SQL")
+        # -------- SQL --------
+        with tab2:
+            sql = st.text_area("Enter SQL")
 
-        if st.button("Analyze SQL"):
-            res = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": sql}]
-            )
+            if st.button("Analyze SQL"):
+                res = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": sql}]
+                )
 
-            result = res.choices[0].message.content
-            st.write(result)
+                result = res.choices[0].message.content
+                st.write(result)
 
-            pdf = generate_pdf(result, "SQL Report")
+                pdf = generate_pdf(result, "SQL Report")
 
-            st.download_button(
-                "📄 Download PDF",
-                pdf,
-                file_name="sql_report.pdf",
-                mime="application/pdf"
-            )
-            
-            
-     with tab3:
-        st.subheader("📊 AWR Analyzer")
+                st.download_button(
+                    "📄 Download PDF",
+                    pdf,
+                    file_name="sql_report.pdf",
+                    mime="application/pdf"
+                )
+                
+                
+         with tab3:
+            st.subheader("📊 AWR Analyzer")
 
-        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+            file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
 
-        if file and st.button("Analyze AWR"):
-            content = file.read().decode(errors="ignore")
+            if file and st.button("Analyze AWR"):
+                content = file.read().decode(errors="ignore")
 
-            if file.name.endswith(".html"):
-                content = parse_awr_html(content)
+                if file.name.endswith(".html"):
+                    content = parse_awr_html(content)
 
-            res = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Analyze this AWR:\n{content}"}
-                ]
-            )
+                res = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": f"Analyze this AWR:\n{content}"}
+                    ]
+                )
 
-            result = res.choices[0].message.content
+                result = res.choices[0].message.content
 
-            st.write(result)
+                st.write(result)
 
             # ✅ PDF download
             pdf = generate_pdf(result, "AWR Report")
