@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 
 from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
 from awr_parser import parse_html, extract_metrics, classify_bottleneck, build_awr_prompt, calculate_health_score
-from pdf_generator import generate_awr_pdf
+from pdf_generator import generate_awr_pdf, generate_cpu_io_chart
 
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
@@ -98,7 +98,7 @@ def generate_pdf(text, title):
 # ================= SIDEBAR =================
 with st.sidebar:
     sidebar_logo()
-    page = st.radio("", ["AI Chat", "Dashboard"])
+    page = st.radio("", ["AI Chat", "Dashboard", "History"])
     st.success(user.email)
     logout()
 
@@ -145,48 +145,122 @@ if page == "AI Chat":
 
         file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
 
-        if file:
-            if st.button("Analyze AWR"):
+        if file and st.button("Analyze AWR"):
 
-                content = file.read().decode(errors="ignore")
+            content = file.read().decode(errors="ignore")
 
-                if file.name.endswith(".html"):
-                    content = parse_html(content)
+            if file.name.endswith(".html"):
+                content = parse_html(content)
 
-                # Extract metrics
-                metrics = extract_metrics(content)
+            metrics = extract_metrics(content)
+            bottleneck = classify_bottleneck(metrics)
 
-                # Classify bottleneck
-                bottleneck = classify_bottleneck(metrics)
-                st.info(f"Detected Bottleneck: {bottleneck}")
+            st.info(f"Detected Bottleneck: {bottleneck}")
 
-                # Health score
-                score, level = calculate_health_score(metrics, bottleneck)
-                st.metric("Health Score", f"{score} ({level})")
+            score, level = calculate_health_score(metrics, bottleneck)
+            st.metric("Health Score", f"{score} ({level})")
 
-                # Build AI prompt
-                prompt = build_awr_prompt(metrics)
+            prompt = build_awr_prompt(metrics)
 
-                res = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ]
+            )
 
-                result = res.choices[0].message.content
-                st.write(result)
+            result = res.choices[0].message.content
+            st.write(result)
 
-                # ✅ CORRECT PDF (AWR)
-                pdf = generate_awr_pdf(result, metrics, score, level)
+            # ✅ prevent duplicate insert
+            if "saved_awr" not in st.session_state:
+                supabase.table("awr_reports").insert({
+                    "user_email": user.email,
+                    "metrics": metrics,
+                    "bottleneck": bottleneck,
+                    "score": score,
+                    "level": level,
+                    "result": result
+                }).execute()
 
-                st.download_button(
-                    "📄 Download AWR Report",
-                    pdf,
-                    file_name="awr_report.pdf",
-                    mime="application/pdf"
-                )
+                st.session_state.saved_awr = True
+
+            pdf = generate_awr_pdf(result, metrics, score, level)
+
+            st.download_button(
+                "📄 Download AWR Report",
+                pdf,
+                file_name="awr_report.pdf",
+                mime="application/pdf"
+            )
+
+# ================= DASHBOARD =================
+if page == "Dashboard":
+
+    st.title("📊 DBA Dashboard")
+
+    data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .order("created_at", desc=True)\
+        .limit(1)\
+        .execute()
+
+    if not data.data:
+        st.warning("No AWR reports found")
+        st.stop()
+
+    latest = data.data[0]
+
+    metrics = latest["metrics"] or {}
+    bottleneck = latest["bottleneck"]
+    score = latest["score"]
+    level = latest["level"]
+    result = latest["result"]
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("CPU %", metrics.get("cpu_pct", 0))
+    col2.metric("Health Score", f"{score} ({level})")
+    col3.metric("Bottleneck", bottleneck)
+
+    if level == "Critical":
+        st.error("🚨 Critical")
+    elif level == "Warning":
+        st.warning("⚠️ Warning")
+    else:
+        st.success("✅ Healthy")
+
+    chart = generate_cpu_io_chart(metrics)
+    st.image(chart, caption="CPU vs IO")
+
+    st.subheader("🧠 Analysis")
+    st.write(result)
+
+# ================= HISTORY =================
+if page == "History":
+
+    st.title("📁 AWR History")
+
+    data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .order("created_at", desc=True)\
+        .execute()
+
+    if not data.data:
+        st.warning("No reports yet")
+        st.stop()
+
+    for row in data.data:
+        st.markdown(f"""
+        📄 **{row['created_at']}**  
+        ⚡ Score: {row['score']} ({row['level']})  
+        🔍 Bottleneck: {row['bottleneck']}
+        """)
+
+        if st.button(f"View {row['id']}", key=row["id"]):
+            st.write(row["result"])
 
 # ================= FOOTER =================
 st.markdown("---")
