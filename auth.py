@@ -41,10 +41,7 @@ def login():
         })
 
         if res.url:
-            st.markdown(
-                f"""<script>window.location.href="{res.url}"</script>""",
-                unsafe_allow_html=True
-            )
+        st.link_button("👉 Click to continue Google Login", res.url)
 
 # ================= SIGNUP =================
 def signup():

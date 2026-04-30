@@ -21,6 +21,25 @@ def load_css():
         pass
 
 load_css()
+# ===============================
+# 🔐 GOOGLE OAUTH HANDLER
+# ===============================
+params = st.query_params
+
+if "code" in params:
+    try:
+        supabase.auth.exchange_code_for_session({
+            "auth_code": params["code"]
+        })
+
+        st.query_params.clear()
+
+        st.session_state.user = supabase.auth.get_session().user
+
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"OAuth Error: {e}")
 
 # ================= OAUTH FIX =================
 params = st.query_params
