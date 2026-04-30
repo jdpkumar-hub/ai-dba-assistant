@@ -148,47 +148,47 @@ if page == "AI Chat":
     # -------- AWR --------
      
    with tab3:
-    st.subheader("📊 AWR Analyzer")
+        st.subheader("📊 AWR Analyzer")
 
-    file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
 
-    if file:
-        if st.button("Analyze AWR"):
+        if file:
+            if st.button("Analyze AWR"):
 
-            content = file.read().decode(errors="ignore")
+                content = file.read().decode(errors="ignore")
 
-            # HTML handling
-            if file.name.endswith(".html"):
-                content = parse_html(content)
+                # HTML handling
+                if file.name.endswith(".html"):
+                    content = parse_html(content)
 
-            # Extract sections
-            sections = extract_awr_sections(content)
+                # Extract sections
+                sections = extract_awr_sections(content)
 
-            # Build structured prompt
-            prompt = build_awr_prompt(sections)
+                # Build structured prompt
+                prompt = build_awr_prompt(sections)
 
-            # AI call
-            res = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt}
-                ]
-            )
+                # AI call
+                res = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
 
-            result = res.choices[0].message.content
-            st.write(result)
+                result = res.choices[0].message.content
+                st.write(result)
 
-            # PDF
-            pdf = generate_pdf(result, "AWR Report")
+                # PDF
+                pdf = generate_pdf(result, "AWR Report")
 
-            st.download_button(
-                "📄 Download AWR PDF",
-                pdf,
-                file_name="awr_report.pdf",
-                mime="application/pdf"
-            )
-    # -------- AWR --------
+                st.download_button(
+                    "📄 Download AWR PDF",
+                    pdf,
+                    file_name="awr_report.pdf",
+                    mime="application/pdf"
+                )
+        # -------- AWR --------
 
 # ================= FOOTER =================
 st.markdown("---")
