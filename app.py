@@ -100,6 +100,14 @@ def generate_pdf(text, title):
     buffer.seek(0)
     return buffer
 
+        
+# ================= AWR=================         
+   
+     def parse_awr_html(content):
+            soup = BeautifulSoup(content, "lxml")
+            return soup.get_text()
+            
+            
 # ================= SIDEBAR =================
 with st.sidebar:
     page = st.radio("", ["AI Chat", "Dashboard"])
@@ -109,7 +117,7 @@ with st.sidebar:
 # ================= MAIN =================
 if page == "AI Chat":
 
-    tab1, tab2 = st.tabs(["Chat", "SQL"])
+   tab1, tab2, tab3 = st.tabs(["Chat", "SQL", "AWR"])
 
     # -------- CHAT --------
     with tab1:
@@ -140,5 +148,39 @@ if page == "AI Chat":
                 "📄 Download PDF",
                 pdf,
                 file_name="sql_report.pdf",
+                mime="application/pdf"
+            )
+            
+            
+     with tab3:
+        st.subheader("📊 AWR Analyzer")
+
+        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+
+        if file and st.button("Analyze AWR"):
+            content = file.read().decode(errors="ignore")
+
+            if file.name.endswith(".html"):
+                content = parse_awr_html(content)
+
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Analyze this AWR:\n{content}"}
+                ]
+            )
+
+            result = res.choices[0].message.content
+
+            st.write(result)
+
+            # ✅ PDF download
+            pdf = generate_pdf(result, "AWR Report")
+
+            st.download_button(
+                "📄 Download AWR PDF",
+                pdf,
+                file_name="awr_report.pdf",
                 mime="application/pdf"
             )

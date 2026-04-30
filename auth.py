@@ -34,17 +34,17 @@ def login():
     st.divider()
 
     # Google Login
-    if st.button("🔵 Continue with Google"):
-        res = supabase.auth.sign_in_with_oauth({
-            "provider": "google",
-            "options": {
-                "redirect_to": REDIRECT_URL
-            }
-        })
+            
+            st.markdown("### Or")
 
-        if res.url:
-            st.link_button("👉 Continue with Google", res.url)
+            res = supabase.auth.sign_in_with_oauth({
+                "provider": "google",
+                "options": {"redirect_to": REDIRECT_URL}
+            })
 
+            if res.url:
+                st.link_button("🔵 Continue with Google", res.url)
+        
 
 # ================= SIGNUP =================
 def signup():
