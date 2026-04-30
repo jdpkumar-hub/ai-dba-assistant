@@ -141,66 +141,66 @@ if page == "AI Chat":
 
     # -------- AWR --------
     with tab3:
-    st.subheader("📊 AWR Analyzer")
+        st.subheader("📊 AWR Analyzer")
 
-    file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
 
-    if file and st.button("Analyze AWR"):
+        if file and st.button("Analyze AWR"):
 
-        content = file.read().decode(errors="ignore")
+            content = file.read().decode(errors="ignore")
 
-        if file.name.endswith(".html"):
-            content = parse_html(content)
+            if file.name.endswith(".html"):
+                content = parse_html(content)
 
-        metrics = extract_metrics(content)
-        bottleneck = classify_bottleneck(metrics)
+            metrics = extract_metrics(content)
+            bottleneck = classify_bottleneck(metrics)
 
-        st.info(f"Detected Bottleneck: {bottleneck}")
+            st.info(f"Detected Bottleneck: {bottleneck}")
 
-        score, level = calculate_health_score(metrics, bottleneck)
-        st.metric("Health Score", f"{score} ({level})")
+            score, level = calculate_health_score(metrics, bottleneck)
+            st.metric("Health Score", f"{score} ({level})")
 
-        prompt = build_awr_prompt(metrics)
+            prompt = build_awr_prompt(metrics)
 
-        res = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt}
-            ]
-        )
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ]
+            )
 
-        result = res.choices[0].message.content
-        st.write(result)
+            result = res.choices[0].message.content
+            st.write(result)
 
-        # ✅ SAFE INSERT (ONLY ONCE)
-        import json
+            # ✅ SAFE INSERT (ONLY ONCE)
+            import json
 
-        try:
-            supabase.table("awr_reports").insert({
-                "user_email": str(user.email),
-                "metrics": json.loads(json.dumps(metrics)),
-                "bottleneck": str(bottleneck),
-                "score": int(score),
-                "level": str(level),
-                "result": str(result)
-            }).execute()
+            try:
+                supabase.table("awr_reports").insert({
+                    "user_email": str(user.email),
+                    "metrics": json.loads(json.dumps(metrics)),
+                    "bottleneck": str(bottleneck),
+                    "score": int(score),
+                    "level": str(level),
+                    "result": str(result)
+                }).execute()
 
-            st.success("✅ AWR report saved")
+                st.success("✅ AWR report saved")
 
-        except Exception as e:
-            st.error("❌ Failed to save AWR report")
-            st.write(e)
+            except Exception as e:
+                st.error("❌ Failed to save AWR report")
+                st.write(e)
 
-        # ✅ PDF
-        pdf = generate_awr_pdf(result, metrics, score, level)
+            # ✅ PDF
+            pdf = generate_awr_pdf(result, metrics, score, level)
 
-        st.download_button(
-            "📄 Download AWR Report",
-            pdf,
-            file_name="awr_report.pdf",
-            mime="application/pdf"
-        )
+            st.download_button(
+                "📄 Download AWR Report",
+                pdf,
+                file_name="awr_report.pdf",
+                mime="application/pdf"
+            )
 # ================= DASHBOARD =================
 if page == "Dashboard":
 
