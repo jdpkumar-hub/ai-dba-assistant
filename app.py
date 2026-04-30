@@ -7,10 +7,13 @@ import io
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
+from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
 
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
-
+apply_ui_styles()
+render_centered_title()
+ 
 # ================= CSS =================
 def load_css():
     try:
@@ -98,6 +101,7 @@ def parse_awr_html(content):
 
 # ================= SIDEBAR =================
 with st.sidebar:
+    sidebar_logo()   # ✅ CORRECT PLACE
     page = st.radio("", ["AI Chat", "Dashboard"])
     st.success(user.email)
     logout()
