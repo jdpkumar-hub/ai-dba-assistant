@@ -38,24 +38,24 @@ if "user" not in st.session_state:
     st.session_state.user = None
 
 # ================= OAUTH HANDLER =================
-params = st.query_params
-if "code" in params:
+# ================= OAUTH HANDLER =================
+query_params = st.experimental_get_query_params()
+
+if "code" in query_params:
     try:
-        supabase.auth.exchange_code_for_session({
-            "auth_code": params["code"]
-        })
+        code = query_params["code"][0]
+
+        supabase.auth.exchange_code_for_session(code)
+
         st.session_state.user = supabase.auth.get_session().user
-        st.query_params.clear()
+
+        # ✅ Clear URL params
+        st.experimental_set_query_params()
+
         st.rerun()
+
     except Exception as e:
         st.error(f"OAuth Error: {e}")
-
-user = get_user()
-if user:
-    st.session_state.user = user
-
-user = st.session_state.user
-#========================================
 # ================= PASSWORD RECOVERY =================
 query_params = st.query_params
 

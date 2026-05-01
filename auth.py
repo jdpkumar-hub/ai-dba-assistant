@@ -11,7 +11,16 @@ REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 
 # ================= LOGIN =================
 def login():
-    st.markdown("## 🔐 Login")
+    st.subheader("Login")
+
+    # ✅ Google Login Button (IMPORTANT)
+    if st.button("🔐 Login with Google"):
+        res = supabase.auth.sign_in_with_oauth({
+            "provider": "google",
+        })
+        st.write("Redirecting to Google...")
+
+    # (keep your existing email/password login below if you have)
 
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
