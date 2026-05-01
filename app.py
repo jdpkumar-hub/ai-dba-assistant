@@ -1,51 +1,42 @@
 import streamlit as st
 from auth import login, signup, reset_password, logout, get_user, supabase
 from openai import OpenAI
-import io, json
-
+from bs4 import BeautifulSoup
+import io
+import json
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 
 from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
 from awr_parser import parse_html, extract_metrics, classify_bottleneck, build_awr_prompt, calculate_health_score
-from pdf_generator import generate_awr_pdf
-
-# ================= ADMIN =================
-ADMIN_EMAILS = ["jdpkumar@gmail.com", "aidbaassistant@gmail.com"]
+from pdf_generator import generate_awr_pdf, generate_cpu_io_chart
 
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
 apply_ui_styles()
 render_centered_title()
 
-# ================= PASSWORD RESET HANDLER =================
-query = st.query_params
+# ================= CSS =================
+def load_css():
+    try:
+        with open("styles.css") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except:
+        pass
 
-if query.get("type") == "recovery":
+load_css()
 
-    st.title("🔑 Reset Your Password")
-
-    new_password = st.text_input("New Password", type="password")
-    confirm_password = st.text_input("Confirm Password", type="password")
-
-    if st.button("Update Password"):
-
-        if new_password != confirm_password:
-            st.error("Passwords do not match")
-        else:
-            try:
-                supabase.auth.update_user({"password": new_password})
-
-                st.success("✅ Password updated successfully")
-                st.query_params.clear()
-                st.info("Please login again")
-
-            except Exception as e:
-                st.error("❌ Reset failed")
-                st.write(e)
-
-    st.stop()
+# ================= OAUTH =================
+params = st.query_params
+if "code" in params:
+    try:
+        supabase.auth.exchange_code_for_session({"auth_code": params["code"]})
+        st.query_params.clear()
+        st.session_state.user = supabase.auth.get_session().user
+        st.rerun()
+    except Exception as e:
+        st.error(f"OAuth Error: {e}")
 
 # ================= SESSION =================
 if "user" not in st.session_state:
@@ -74,21 +65,6 @@ if not user:
 
     st.stop()
 
-# ================= ADMIN =================
-is_admin = user.email in ADMIN_EMAILS
-
-# ================= SIDEBAR =================
-with st.sidebar:
-    sidebar_logo()
-
-    pages = ["AI Chat", "Dashboard", "History", "Trends"]
-    if is_admin:
-        pages.append("Admin Panel")
-
-    page = st.radio("", pages)
-    st.success(user.email)
-    logout()
-
 # ================= OPENAI =================
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
@@ -101,11 +77,37 @@ Provide:
 - Best Practices
 """
 
+# ================= SIMPLE PDF =================
+def generate_pdf(text, title):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+
+    content = []
+    content.append(Paragraph(title, styles["Title"]))
+    content.append(Spacer(1, 10))
+
+    for line in text.split("\n"):
+        if line.strip():
+            content.append(Paragraph(line, styles["Normal"]))
+
+    doc.build(content)
+    buffer.seek(0)
+    return buffer
+
+# ================= SIDEBAR =================
+with st.sidebar:
+    sidebar_logo()
+    page = st.radio("", ["AI Chat", "Dashboard", "History", "Trends"])
+    st.success(user.email)
+    logout()
+
 # ================= MAIN =================
 if page == "AI Chat":
 
     tab1, tab2, tab3 = st.tabs(["💬 Chat", "⚡ SQL Analyzer", "📊 AWR Analyzer"])
 
+    # -------- CHAT --------
     with tab1:
         prompt = st.chat_input("Ask...")
         if prompt:
@@ -115,6 +117,7 @@ if page == "AI Chat":
             )
             st.write(res.choices[0].message.content)
 
+    # -------- SQL --------
     with tab2:
         sql = st.text_area("Enter SQL")
 
@@ -127,10 +130,23 @@ if page == "AI Chat":
             result = res.choices[0].message.content
             st.write(result)
 
+            pdf = generate_pdf(result, "SQL Report")
+
+            st.download_button(
+                "📄 Download SQL Report",
+                pdf,
+                file_name="sql_report.pdf",
+                mime="application/pdf"
+            )
+
+    # -------- AWR --------
     with tab3:
-        file = st.file_uploader("Upload AWR", ["txt", "html"])
+        st.subheader("📊 AWR Analyzer")
+
+        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
 
         if file and st.button("Analyze AWR"):
+
             content = file.read().decode(errors="ignore")
 
             if file.name.endswith(".html"):
@@ -139,25 +155,44 @@ if page == "AI Chat":
             metrics = extract_metrics(content)
             bottleneck = classify_bottleneck(metrics)
 
+            st.info(f"Detected Bottleneck: {bottleneck}")
+
             score, level = calculate_health_score(metrics, bottleneck)
+            st.metric("Health Score", f"{score} ({level})")
+
+            prompt = build_awr_prompt(metrics)
 
             res = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[{"role": "user", "content": build_awr_prompt(metrics)}]
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ]
             )
 
             result = res.choices[0].message.content
             st.write(result)
 
-            supabase.table("awr_reports").insert({
-                "user_email": user.email,
-                "metrics": metrics,
-                "bottleneck": bottleneck,
-                "score": score,
-                "level": level,
-                "result": result
-            }).execute()
+            # ✅ SAFE INSERT (ONLY ONCE)
+            import json
 
+            try:
+                supabase.table("awr_reports").insert({
+                    "user_email": str(user.email),
+                    "metrics": json.loads(json.dumps(metrics)),
+                    "bottleneck": str(bottleneck),
+                    "score": int(score),
+                    "level": str(level),
+                    "result": str(result)
+                }).execute()
+
+                st.success("✅ AWR report saved")
+
+            except Exception as e:
+                st.error("❌ Failed to save AWR report")
+                st.write(e)
+
+            # ✅ PDF
             pdf = generate_awr_pdf(result, metrics, score, level)
 
             st.download_button(
@@ -166,9 +201,156 @@ if page == "AI Chat":
                 file_name="awr_report.pdf",
                 mime="application/pdf"
             )
+# ================= DASHBOARD =================
+if page == "Dashboard":
 
-# ================= ADMIN PANEL =================
-if page == "Admin Panel":
-    st.title("🛠 Admin Panel")
-    data = supabase.table("awr_reports").select("*").execute()
-    st.write("Total Reports:", len(data.data))
+    st.title("📊 DBA Dashboard")
+
+    data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .order("created_at", desc=True)\
+        .limit(1)\
+        .execute()
+
+    if not data.data:
+        st.warning("No AWR reports found")
+        st.stop()
+
+    latest = data.data[0]
+
+    metrics = latest["metrics"] or {}
+    bottleneck = latest["bottleneck"]
+    score = latest["score"]
+    level = latest["level"]
+    result = latest["result"]
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("CPU %", metrics.get("cpu_pct", 0))
+    col2.metric("Health Score", f"{score} ({level})")
+    col3.metric("Bottleneck", bottleneck)
+
+    if level == "Critical":
+        st.error("🚨 Critical")
+    elif level == "Warning":
+        st.warning("⚠️ Warning")
+    else:
+        st.success("✅ Healthy")
+
+    chart = generate_cpu_io_chart(metrics)
+    st.image(chart, caption="CPU vs IO")
+
+    st.subheader("🧠 Analysis")
+    st.write(result)
+
+# ================= HISTORY =================
+if page == "History":
+
+    st.title("📁 AWR History")
+
+    data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .order("created_at", desc=True)\
+        .execute()
+
+    if not data.data:
+        st.warning("No reports yet")
+        st.stop()
+
+    for row in data.data:
+        st.markdown(f"""
+        📄 **{row['created_at']}**  
+        ⚡ Score: {row['score']} ({row['level']})  
+        🔍 Bottleneck: {row['bottleneck']}
+        """)
+
+        if st.button(f"View {row['id']}", key=row["id"]):
+            st.write(row["result"])
+ 
+# ================= TRENDS =================
+if page == "Trends":
+
+    st.title("📈 Performance Trends")
+
+    data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .order("created_at")\
+        .execute()
+
+    if not data.data:
+        st.warning("No data available")
+        st.stop()
+
+    import pandas as pd
+    import json
+
+    df = pd.DataFrame(data.data)
+
+    # ================= CLEAN METRICS =================
+    def parse_metrics(m):
+        if isinstance(m, dict):
+            return m
+        try:
+            return json.loads(m)
+        except:
+            return {}
+
+    df["metrics"] = df["metrics"].apply(parse_metrics)
+
+    df["cpu_pct"] = df["metrics"].apply(lambda x: x.get("cpu_pct", 0))
+
+    df["created_at"] = pd.to_datetime(df["created_at"])
+    df = df.sort_values("created_at")   # ✅ FIX
+
+    # ================= ANOMALY DETECTION =================
+    df["cpu_avg"] = df["cpu_pct"].rolling(window=3, min_periods=1).mean()
+
+    df["cpu_spike"] = df["cpu_pct"] > (df["cpu_avg"] + 20)
+    df["is_critical"] = df["score"] < 60
+
+    # ================= ALERTS =================
+    st.subheader("🚨 Alerts")
+
+    cpu_spikes = df[df["cpu_spike"]]
+    criticals = df[df["is_critical"]]
+
+    if cpu_spikes.empty and criticals.empty:
+        st.success("✅ No anomalies detected")
+    else:
+        for _, row in cpu_spikes.iterrows():
+            st.error(f"🔥 CPU Spike at {row['created_at']} (CPU: {row['cpu_pct']}%)")
+
+        for _, row in criticals.iterrows():
+            st.error(f"🚨 Critical Score {row['score']} at {row['created_at']}")
+
+    # ================= CPU TREND =================
+    st.subheader("🧠 CPU Usage Trend")
+
+    st.line_chart(df.set_index("created_at")["cpu_pct"])
+
+    if not cpu_spikes.empty:
+        st.warning(f"{len(cpu_spikes)} CPU spikes detected")
+
+    # ================= HEALTH TREND =================
+    st.subheader("💊 Health Score Trend")
+
+    st.line_chart(df.set_index("created_at")["score"])
+
+    critical_count = len(criticals)
+
+    if critical_count > 0:
+        st.error(f"🚨 {critical_count} critical performance events detected")
+
+    # ================= DATA TABLE =================
+    st.subheader("📋 Data")
+
+    st.dataframe(df[["created_at", "cpu_pct", "score", "level", "bottleneck"]])
+    # ================= TABLE VIEW =================
+    st.subheader("📋 Raw Data")
+
+    st.dataframe(df[["created_at", "cpu_pct", "score", "level", "bottleneck"]])
+# ================= FOOTER =================
+st.markdown("---")
+st.caption("🚀 AI DBA Assistant | JDP | SAAS Application")

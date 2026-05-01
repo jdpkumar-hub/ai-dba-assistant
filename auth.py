@@ -1,97 +1,124 @@
 import streamlit as st
 from supabase import create_client
 
+# -------------------------------
+# CONFIG
+# -------------------------------
 SUPABASE_URL = "https://wequqsbvhydvugifevhm.supabase.co"
-SUPABASE_KEY = "YOUR_KEY"
+SUPABASE_KEY = "sb_publishable_ZOfGu0PLriJqtJLdmk6Bkg_mJ3HrURB"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 
-# ================= LOGIN =================
+# -------------------------------
+# LOGIN (EMAIL + GOOGLE)
+# -------------------------------
 def login():
     st.markdown("## 🔐 Login")
 
-    email = st.text_input("Email", key="login_email")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
 
-    col1, col2 = st.columns(2)
+    if st.button("Login"):
+        try:
+            res = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
 
-    # ===== OTP LOGIN =====
-    with col1:
-        if st.button("Send OTP"):
-            try:
-                supabase.auth.sign_in_with_otp({"email": email})
-                st.success("📩 OTP sent")
-            except:
-                st.error("Failed to send OTP")
+            if res.user:
+                st.session_state.user = res.user
+                st.success("Login successful")
+                st.rerun()
 
-    # ===== PASSWORD LOGIN =====
-    with col2:
-        password = st.text_input("Password", type="password", key="login_pass")
-
-        if st.button("Login with Password"):
-            try:
-                res = supabase.auth.sign_in_with_password({
-                    "email": email,
-                    "password": password
-                })
-
-                if res.user:
-                    st.session_state.user = res.user
-                    st.success("Login successful")
-                    st.rerun()
-
-            except:
-                st.error("Invalid credentials")
+        except Exception as e:
+            st.error("Invalid credentials")
 
     st.divider()
 
-    # ===== GOOGLE LOGIN (FIXED) =====
+    # Google Login
     if st.button("🔵 Continue with Google"):
+        res = supabase.auth.sign_in_with_oauth({
+            "provider": "google",
+            "options": {
+                "redirect_to": REDIRECT_URL
+            }
+        })
+
+        if res.url:
+            st.markdown(f"[Click here if not redirected]({res.url})")
+            st.markdown(
+                f"""<script>window.location.href="{res.url}"</script>""",
+                unsafe_allow_html=True
+            )
+
+# -------------------------------
+# SIGNUP (WITH CONFIRM PASSWORD)
+# -------------------------------
+def signup():
+    st.markdown("## 🆕 Create Account")
+
+    email = st.text_input("Email", key="signup_email")
+    password = st.text_input("Password", type="password", key="signup_pass")
+    confirm = st.text_input("Confirm Password", type="password", key="signup_confirm")
+
+    if st.button("Create Account"):
+        if password != confirm:
+            st.error("Passwords do not match")
+            return
+
         try:
-            res = supabase.auth.sign_in_with_oauth({
-                "provider": "google",
-                "options": {"redirect_to": REDIRECT_URL}
+            supabase.auth.sign_up({
+                "email": email,
+                "password": password
             })
 
-            # 👉 redirect automatically
-            st.markdown(f'<meta http-equiv="refresh" content="0; url={res.url}">', unsafe_allow_html=True)
+            st.success("Account created! Check email for verification link")
 
         except Exception as e:
-            st.error("Google login failed")
-# ================= SIGNUP =================
-def signup():
-    email = st.text_input("Email", key="signup_email")
+            st.error("Signup failed")
 
-    if st.button("Signup OTP"):
-        supabase.auth.sign_in_with_otp({
-            "email": email,
-            "options": {"email_redirect_to": REDIRECT_URL}
-        })
-        st.success("Check email")
-
-# ================= RESET =================
+# -------------------------------
+# RESET PASSWORD
+# -------------------------------
 def reset_password():
+    st.markdown("## 🔑 Reset Password")
+
     email = st.text_input("Email", key="reset_email")
 
     if st.button("Send Reset Link"):
-        supabase.auth.reset_password_for_email(
-            email,
-            {"redirect_to": REDIRECT_URL + "/?type=recovery"}
-        )
-        st.success("Reset email sent")
+        try:
+            supabase.auth.reset_password_email(email)
+            st.success("Reset link sent to email")
+        except:
+            st.error("Failed to send reset email")
 
-# ================= USER =================
+# -------------------------------
+# GET USER
+# -------------------------------
 def get_user():
     try:
-        session = supabase.auth.get_session()
-        return session.user if session else None
+        res = supabase.auth.get_user()
+        return res.user if res else None
     except:
         return None
 
-# ================= LOGOUT =================
+# -------------------------------
+# LOGOUT
+# -------------------------------
+# -------------------------------
+# LOGOUT (FIXED 🔥)
+# -------------------------------
 def logout():
-    if st.button("Logout"):
-        supabase.auth.sign_out()
-        st.session_state.clear()
+    if st.button("🚪 Logout"):
+        try:
+            supabase.auth.sign_out()
+        except:
+            pass
+
+        # ✅ CLEAR SESSION SAFELY
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+
         st.rerun()
