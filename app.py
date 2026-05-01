@@ -50,7 +50,8 @@ if "code" in query_params:
         st.session_state.user = supabase.auth.get_session().user
 
         # ✅ Clear URL params
-        st.experimental_set_query_params()
+        #st.experimental_set_query_params()
+        st.query_params.clear()
 
         st.rerun()
 
@@ -78,6 +79,16 @@ if query_params.get("type") == "recovery":
 
     st.stop()
 # ================= LOGIN =================
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+user = get_user()
+
+if user:
+    st.session_state.user = user
+
+user = st.session_state.user
+
 if not user:
     col1, col2 = st.columns([0.8, 2.0])
 
