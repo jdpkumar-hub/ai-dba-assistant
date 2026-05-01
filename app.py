@@ -22,6 +22,11 @@ from awr_parser import (
     calculate_health_score
 )
 
+
+# ================= ADMIN =================
+ADMIN_EMAILS = ["jdpkumar@gmail.com", "aidbaassistant@gmail.com"]
+
+
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
 apply_ui_styles()
@@ -94,10 +99,17 @@ def parse_awr_html(content):
 # ================= SIDEBAR =================
 with st.sidebar:
     sidebar_logo()
-    page = st.radio("", ["AI Chat", "Dashboard", "History", "Trends", "Admin"])
+
+    pages = ["AI Chat", "Dashboard", "History", "Trends"]
+
+    # ✅ SHOW ADMIN ONLY IF ADMIN
+    if user.email in ADMIN_EMAILS:
+        pages.append("Admin")
+
+    page = st.radio("", pages)
+
     st.success(user.email)
     logout()
-
 # ================= AI CHAT =================
 if page == "AI Chat":
 
@@ -264,5 +276,8 @@ if page == "Trends":
     st.line_chart(df.set_index("created_at")["count"])
     
 #==================================
-if page == "Admin":
-    render_admin(user)
+ if page == "Admin":
+    if user.email in ADMIN_EMAILS:
+        render_admin(user)
+    else:
+        st.error("Unauthorized access")
