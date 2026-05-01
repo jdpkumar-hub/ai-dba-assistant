@@ -12,50 +12,50 @@ REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 
 # ================= PASSWORD RECOVERY =================
 # ================= PASSWORD RECOVERY =================
-query_params = st.query_params
-
-if query_params.get("type") == "recovery":
-    st.title("🔑 Reset Your Password")
-
-    new_password = st.text_input("New Password", type="password")
-
-    if st.button("Update Password"):
-        try:
-            # 🔥 Try update directly (new SDK)
-            supabase.auth.update_user({
-                "password": new_password
-            })
-
-            st.success("✅ Password updated successfully!")
-            st.query_params.clear()
-
-        except Exception as e:
-            # 🔥 Fallback for old SDK (manual session required)
-            try:
-                access_token = query_params.get("access_token")
-                refresh_token = query_params.get("refresh_token")
-
-                if isinstance(access_token, list):
-                    access_token = access_token[0]
-                if isinstance(refresh_token, list):
-                    refresh_token = refresh_token[0]
-
-                supabase.auth.set_session({
-                    "access_token": access_token,
-                    "refresh_token": refresh_token
-                })
-
-                supabase.auth.update_user({
-                    "password": new_password
-                })
-
-                st.success("✅ Password updated successfully!")
-
-            except Exception as inner_error:
-                st.error("❌ Failed to update password")
-                st.write(inner_error)
-
-    st.stop()
+#uery_params = st.query_params
+#
+# query_params.get("type") == "recovery":
+#  st.title("🔑 Reset Your Password")
+#
+#  new_password = st.text_input("New Password", type="password")
+#
+#  if st.button("Update Password"):
+#      try:
+#          # 🔥 Try update directly (new SDK)
+#          supabase.auth.update_user({
+#              "password": new_password
+#          })
+#
+#          st.success("✅ Password updated successfully!")
+#          st.query_params.clear()
+#
+#      except Exception as e:
+#          # 🔥 Fallback for old SDK (manual session required)
+#          try:
+#              access_token = query_params.get("access_token")
+#              refresh_token = query_params.get("refresh_token")
+#
+#              if isinstance(access_token, list):
+#                  access_token = access_token[0]
+#              if isinstance(refresh_token, list):
+#                  refresh_token = refresh_token[0]
+#
+#              supabase.auth.set_session({
+#                  "access_token": access_token,
+#                  "refresh_token": refresh_token
+#              })
+#
+#              supabase.auth.update_user({
+#                  "password": new_password
+#              })
+#
+#              st.success("✅ Password updated successfully!")
+#
+#          except Exception as inner_error:
+#              st.error("❌ Failed to update password")
+#              st.write(inner_error)
+#
+#  st.stop()
 #================================================
 def login():
     st.subheader("Login")
@@ -112,20 +112,46 @@ def signup():
             st.error("Signup failed")
 
 # ================= RESET =================
-def reset_password():
-    st.markdown("## 🔑 Reset Password")
+def reset_with_otp():
+    st.markdown("## 🔑 Reset Password (OTP)")
 
+    # ================= STEP 1: SEND OTP =================
     email = st.text_input("Email", key="reset_email")
 
-    if st.button("Send Reset Link"):
+    if st.button("Send OTP"):
         try:
-            supabase.auth.reset_password_for_email(
-                email,
-                {"redirect_to": "https://ai-dba-assistant.streamlit.app"}
-            )
-            st.success("Reset link sent")
-        except Exception:
-            st.error("Failed to send email")
+            supabase.auth.sign_in_with_otp({
+                "email": email
+            })
+            st.success("📩 OTP sent to your email")
+            st.session_state.reset_email = email
+        except Exception as e:
+            st.error("Failed to send OTP")
+            st.write(e)
+
+    # ================= STEP 2: VERIFY OTP =================
+    otp = st.text_input("Enter OTP", key="reset_otp")
+    new_password = st.text_input("New Password", type="password", key="new_pass")
+
+    if st.button("Verify OTP & Reset"):
+        try:
+            res = supabase.auth.verify_otp({
+                "email": st.session_state.get("reset_email"),
+                "token": otp,
+                "type": "email"
+            })
+
+            if res.user:
+                supabase.auth.update_user({
+                    "password": new_password
+                })
+
+                st.success("✅ Password updated successfully!")
+                st.info("Please login with your new password")
+
+        except Exception as e:
+            st.error("❌ Invalid OTP or failed reset")
+            st.write(e)
 
 # ================= GET USER =================
 def get_user():
