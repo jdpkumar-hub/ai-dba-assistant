@@ -21,7 +21,7 @@ from awr_parser import (
     build_awr_prompt,
     calculate_health_score
 )
-
+from otp_auth import signup_with_otp, reset_with_otp
 
 # ================= ADMIN =================
 ADMIN_EMAILS = ["jdpkumar@gmail.com", "aidbaassistant@gmail.com"]
@@ -65,10 +65,18 @@ if not user:
         st.caption("🚀 Smart Oracle Optimization")
 
     with col2:
+#        tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
+#        with tab1: login()
+#        with tab2: signup()
+#        with tab3: reset_password()
+        
         tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
-        with tab1: login()
-        with tab2: signup()
-        with tab3: reset_password()
+        with tab1:
+            login()   # ✅ KEEP GOOGLE AUTH UNCHANGED
+        with tab2:
+            signup_with_otp()   # ✅ NEW OTP SIGNUP
+        with tab3:
+            reset_with_otp()    # ✅ NEW RESET FLOW
 
     st.stop()
 
