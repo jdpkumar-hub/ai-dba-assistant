@@ -11,6 +11,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 
 from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
+from admin_panel import render_admin
+from usage_tracker import track_usage
 
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
@@ -84,7 +86,7 @@ def parse_awr_html(content):
 # ================= SIDEBAR =================
 with st.sidebar:
     sidebar_logo()
-    page = st.radio("", ["AI Chat", "Dashboard", "History", "Trends"])
+    page = st.radio("", ["AI Chat", "Dashboard", "History", "Trends", "Admin"])
     st.success(user.email)
     logout()
 
@@ -115,7 +117,7 @@ if page == "AI Chat":
 
             result = res.choices[0].message.content
             st.write(result)
-
+            track_usage(user.email, "SQL_ANALYSIS")
             pdf = generate_pdf(result, "SQL Report")
             st.download_button(
                 "📄 Download AWR PDF",
@@ -143,7 +145,7 @@ if page == "AI Chat":
 
             result = res.choices[0].message.content
             st.write(result)
-
+            track_usage(user.email, "AWR_ANALYSIS")
             # SAVE TO DB
             try:
                 supabase.table("awr_reports").insert({
@@ -211,3 +213,7 @@ if page == "Trends":
     df["count"] = range(len(df))
 
     st.line_chart(df.set_index("created_at")["count"])
+    
+#==================================
+if page == "Admin":
+    render_admin(user)
