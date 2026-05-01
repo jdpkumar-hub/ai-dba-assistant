@@ -170,10 +170,11 @@ if page == "AI Chat":
             track_usage(user.email, "SQL_ANALYSIS")
             pdf = generate_pdf(result, "SQL Report")
             st.download_button(
-                "📄 Download AWR PDF",
+                "📄 Download SQL PDF",
                 data=pdf.getvalue(),
-                file_name="awr_report.pdf",
-                mime="application/pdf"
+                file_name="sql_report.pdf",
+                mime="application/pdf",
+                key="sql_pdf"
             )
 
   # ================= AWR =================
@@ -225,15 +226,16 @@ if page == "AI Chat":
             st.session_state.awr_pdf = generate_pdf(result, "AWR Report")
 
             # ✅ Download
-            st.download_button(
+             st.download_button(
                 "📄 Download AWR PDF",
                 data=st.session_state.awr_pdf.getvalue(),
                 file_name="awr_report.pdf",
-                mime="application/pdf"
+                mime="application/pdf",
+                key="awr_pdf"
             )
 
             # ================= DISPLAY =================
-            if st.session_state.awr_result:
+            if "awr_result" in st.session_state:
 
                 st.write(st.session_state.awr_result)
 
@@ -243,6 +245,8 @@ if page == "AI Chat":
                     file_name="awr_report.pdf",
                     mime="application/pdf"
                 )
+                
+
 # ================= DASHBOARD =================
 if page == "Dashboard":
     st.title("📊 Dashboard")
