@@ -9,7 +9,7 @@ import json
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
-
+from awr_pdf import generate_awr_pdf
 from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
 from admin_panel import render_admin
 from usage_tracker import track_usage
@@ -182,7 +182,7 @@ if page == "AI Chat":
             st.session_state.awr_result = result
 
             # ✅ GENERATE PDF
-            pdf = generate_pdf(result, "AWR Report")
+            pdf = generate_awr_pdf(result, metrics, score, level)
             st.session_state.awr_pdf = pdf
 
             # ✅ TRACK USAGE
