@@ -10,12 +10,55 @@ REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 
 # ================= LOGIN =================
 def login():
+    st.markdown("## 🔐 Login")
+
     email = st.text_input("Email", key="login_email")
 
-    if st.button("Send OTP"):
-        supabase.auth.sign_in_with_otp({"email": email})
-        st.success("OTP sent")
+    col1, col2 = st.columns(2)
 
+    # ===== OTP LOGIN =====
+    with col1:
+        if st.button("Send OTP"):
+            try:
+                supabase.auth.sign_in_with_otp({"email": email})
+                st.success("📩 OTP sent")
+            except:
+                st.error("Failed to send OTP")
+
+    # ===== PASSWORD LOGIN =====
+    with col2:
+        password = st.text_input("Password", type="password", key="login_pass")
+
+        if st.button("Login with Password"):
+            try:
+                res = supabase.auth.sign_in_with_password({
+                    "email": email,
+                    "password": password
+                })
+
+                if res.user:
+                    st.session_state.user = res.user
+                    st.success("Login successful")
+                    st.rerun()
+
+            except:
+                st.error("Invalid credentials")
+
+    st.divider()
+
+    # ===== GOOGLE LOGIN (FIXED) =====
+    if st.button("🔵 Continue with Google"):
+        try:
+            res = supabase.auth.sign_in_with_oauth({
+                "provider": "google",
+                "options": {"redirect_to": REDIRECT_URL}
+            })
+
+            # 👉 redirect automatically
+            st.markdown(f'<meta http-equiv="refresh" content="0; url={res.url}">', unsafe_allow_html=True)
+
+        except Exception as e:
+            st.error("Google login failed")
 # ================= SIGNUP =================
 def signup():
     email = st.text_input("Email", key="signup_email")
