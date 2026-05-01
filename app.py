@@ -37,9 +37,9 @@ render_centered_title()
 if "user" not in st.session_state:
     st.session_state.user = None
 
+
 # ================= OAUTH HANDLER =================
-# ================= OAUTH HANDLER =================
-query_params = st.experimental_get_query_params()
+query_params = st.query_params
 
 if "code" in query_params:
     try:
