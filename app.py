@@ -243,7 +243,8 @@ if page == "AI Chat":
                     "📄 Download AWR PDF",
                     data=st.session_state.awr_pdf.getvalue(),
                     file_name="awr_report.pdf",
-                    mime="application/pdf"
+                    mime="application/pdf",
+                    key="awr_pdf"
                 )
                 
 
