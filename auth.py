@@ -9,51 +9,51 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 
+
+# ================= PASSWORD RECOVERY =================
 # ================= PASSWORD RECOVERY =================
 query_params = st.query_params
 
 if query_params.get("type") == "recovery":
     st.title("🔑 Reset Your Password")
 
-    access_token = query_params.get("access_token")
-    refresh_token = query_params.get("refresh_token")
-
-    # ✅ Fix for Streamlit param types
-    if isinstance(access_token, list):
-        access_token = access_token[0]
-    if isinstance(refresh_token, list):
-        refresh_token = refresh_token[0]
-
-    if not access_token or not refresh_token:
-        st.error("❌ Invalid or expired reset link")
-        st.stop()
-
-    # ✅ Create session
-    try:
-        supabase.auth.set_session({
-            "access_token": access_token,
-            "refresh_token": refresh_token
-        })
-    except Exception as e:
-        st.error(f"Session setup failed: {e}")
-        st.stop()
-
     new_password = st.text_input("New Password", type="password")
 
     if st.button("Update Password"):
         try:
+            # 🔥 Try update directly (new SDK)
             supabase.auth.update_user({
                 "password": new_password
             })
 
             st.success("✅ Password updated successfully!")
-            st.info("Please login with your new password.")
-
             st.query_params.clear()
 
         except Exception as e:
-            st.error("❌ Failed to update password")
-            st.write(e)
+            # 🔥 Fallback for old SDK (manual session required)
+            try:
+                access_token = query_params.get("access_token")
+                refresh_token = query_params.get("refresh_token")
+
+                if isinstance(access_token, list):
+                    access_token = access_token[0]
+                if isinstance(refresh_token, list):
+                    refresh_token = refresh_token[0]
+
+                supabase.auth.set_session({
+                    "access_token": access_token,
+                    "refresh_token": refresh_token
+                })
+
+                supabase.auth.update_user({
+                    "password": new_password
+                })
+
+                st.success("✅ Password updated successfully!")
+
+            except Exception as inner_error:
+                st.error("❌ Failed to update password")
+                st.write(inner_error)
 
     st.stop()
 #================================================
