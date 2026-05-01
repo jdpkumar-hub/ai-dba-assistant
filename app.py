@@ -1,5 +1,5 @@
 import streamlit as st
-from auth import login, signup, reset_password, logout, get_user, supabase
+from auth import login, signup, logout, get_user, supabase
 from openai import OpenAI
 from bs4 import BeautifulSoup
 import io
@@ -21,11 +21,11 @@ from awr_parser import (
     build_awr_prompt,
     calculate_health_score
 )
-from otp_auth import signup_with_otp, reset_with_otp
+from otp_auth import signup_with_otp
+from auth import reset_with_otp
 import streamlit as st
 
 # ================= HANDLE HASH TOKENS =================
-import streamlit as st
 
 # ================= FIX HASH TOKENS =================
 st.markdown("""
@@ -85,26 +85,26 @@ if "code" in query_params:
     except Exception as e:
         st.error(f"OAuth Error: {e}")
 # ================= PASSWORD RECOVERY =================
-query_params = st.query_params
-
-if query_params.get("type") == "recovery":
-    st.title("🔑 Reset Your Password")
-
-    new_password = st.text_input("New Password", type="password")
-
-    if st.button("Update Password"):
-        try:
-            supabase.auth.update_user({
-                "password": new_password
-            })
-
-            st.success("✅ Password updated successfully!")
-            st.info("Please login with your new password.")
-        except Exception as e:
-            st.error("❌ Failed to update password")
-            st.write(e)
-
-    st.stop()
+#query_params = st.query_params
+#
+#if query_params.get("type") == "recovery":
+#    st.title("🔑 Reset Your Password")
+#
+#    new_password = st.text_input("New Password", type="password")
+#
+#    if st.button("Update Password"):
+#        try:
+#            supabase.auth.update_user({
+#                "password": new_password
+#            })
+#
+#            st.success("✅ Password updated successfully!")
+#            st.info("Please login with your new password.")
+#        except Exception as e:
+#            st.error("❌ Failed to update password")
+#            st.write(e)
+#
+#    st.stop()
 # ================= LOGIN =================
 # ================= SESSION =================
 if "user" not in st.session_state:
@@ -136,7 +136,7 @@ if user is None:
 #        tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
 #        with tab1: login()
 #        with tab2: signup()
-#        with tab3: reset_password()
+#        with tab3: reset_with_otp()
         
         tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Signup", "🔑 Reset"])
         with tab1:
