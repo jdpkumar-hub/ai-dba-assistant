@@ -19,11 +19,6 @@ def login():
         "options": {"redirect_to": REDIRECT_URL}
     })
 
-    if res.url:
-        st.link_button("🔵 Continue with Google", res.url)
-
-    st.divider()
-
     # Email login
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
@@ -34,6 +29,12 @@ def login():
                 "email": email,
                 "password": password
             })
+
+
+    if res.url:
+        st.link_button("🔵 Continue with Google", res.url)
+
+    st.divider()
 
             if res.user:
                 st.session_state.user = res.user
