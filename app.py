@@ -38,19 +38,20 @@ if "user" not in st.session_state:
     st.session_state.user = None
 
 
+
 # ================= OAUTH HANDLER =================
 query_params = st.query_params
 
 if "code" in query_params:
     try:
-        code = query_params["code"][0]
+        code = query_params["code"]
 
-        supabase.auth.exchange_code_for_session(code)
+        supabase.auth.exchange_code_for_session({
+            "auth_code": code
+        })
 
         st.session_state.user = supabase.auth.get_session().user
 
-        # ✅ Clear URL params
-        #st.experimental_set_query_params()
         st.query_params.clear()
 
         st.rerun()
