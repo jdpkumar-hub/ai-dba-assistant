@@ -117,7 +117,12 @@ if page == "AI Chat":
             st.write(result)
 
             pdf = generate_pdf(result, "SQL Report")
-            st.download_button("📄 Download PDF", pdf, "sql_report.pdf")
+            st.download_button(
+                "📄 Download AWR PDF",
+                data=pdf.getvalue(),
+                file_name="awr_report.pdf",
+                mime="application/pdf"
+            )
 
     # AWR
     with tab3:
@@ -149,7 +154,12 @@ if page == "AI Chat":
                 pass
 
             pdf = generate_pdf(result, "AWR Report")
-            st.download_button("📄 Download AWR PDF", pdf, "awr_report.pdf")
+            st.download_button(
+                "📄 Download AWR PDF",
+                data=pdf.getvalue(),
+                file_name="awr_report.pdf",
+                mime="application/pdf"
+            )
 
 # ================= DASHBOARD =================
 if page == "Dashboard":
