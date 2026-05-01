@@ -127,65 +127,65 @@ if page == "AI Chat":
             )
 
   # ================= AWR =================
-with tab3:
-    st.subheader("📊 AWR Analyzer")
+    with tab3:
+        st.subheader("📊 AWR Analyzer")
 
-    file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
 
-    # ✅ INIT (OUTSIDE button)
-    if "awr_result" not in st.session_state:
-        st.session_state.awr_result = None
+        # ✅ INIT (OUTSIDE button)
+        if "awr_result" not in st.session_state:
+            st.session_state.awr_result = None
 
-    if "awr_pdf" not in st.session_state:
-        st.session_state.awr_pdf = None
+        if "awr_pdf" not in st.session_state:
+            st.session_state.awr_pdf = None
 
-    # ================= ANALYZE =================
-    if file and st.button("Analyze AWR"):
+        # ================= ANALYZE =================
+        if file and st.button("Analyze AWR"):
 
-        content = file.read().decode(errors="ignore")
+            content = file.read().decode(errors="ignore")
 
-        if file.name.endswith(".html"):
-            content = parse_awr_html(content)
+            if file.name.endswith(".html"):
+                content = parse_awr_html(content)
 
-        # ✅ SINGLE API CALL
-        res = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": content}]
-        )
+            # ✅ SINGLE API CALL
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": content}]
+            )
 
-        result = res.choices[0].message.content
+            result = res.choices[0].message.content
 
-        # ✅ STORE RESULT (CRITICAL)
-        st.session_state.awr_result = result
+            # ✅ STORE RESULT (CRITICAL)
+            st.session_state.awr_result = result
 
-        # ✅ GENERATE PDF ONCE
-        pdf = generate_pdf(result, "AWR Report")
-        st.session_state.awr_pdf = pdf
+            # ✅ GENERATE PDF ONCE
+            pdf = generate_pdf(result, "AWR Report")
+            st.session_state.awr_pdf = pdf
 
-        # ✅ TRACK USAGE
-        track_usage(user.email, "AWR_ANALYSIS")
+            # ✅ TRACK USAGE
+            track_usage(user.email, "AWR_ANALYSIS")
 
-        # ✅ SAVE TO DB
-        try:
-            supabase.table("awr_reports").insert({
-                "user_email": user.email,
-                "result": result
-            }).execute()
-        except Exception as e:
-            st.warning("DB save failed")
+            # ✅ SAVE TO DB
+            try:
+                supabase.table("awr_reports").insert({
+                    "user_email": user.email,
+                    "result": result
+                }).execute()
+            except Exception as e:
+                st.warning("DB save failed")
 
-    # ================= DISPLAY =================
-    if st.session_state.awr_result:
+        # ================= DISPLAY =================
+        if st.session_state.awr_result:
 
-        st.write(st.session_state.awr_result)
+            st.write(st.session_state.awr_result)
 
-        # ✅ PDF BUTTON ALWAYS VISIBLE
-        st.download_button(
-            "📄 Download AWR PDF",
-            data=st.session_state.awr_pdf.getvalue(),
-            file_name="awr_report.pdf",
-            mime="application/pdf"
-        )
+            # ✅ PDF BUTTON ALWAYS VISIBLE
+            st.download_button(
+                "📄 Download AWR PDF",
+                data=st.session_state.awr_pdf.getvalue(),
+                file_name="awr_report.pdf",
+                mime="application/pdf"
+            )
 # ================= DASHBOARD =================
 if page == "Dashboard":
     st.title("📊 Dashboard")
