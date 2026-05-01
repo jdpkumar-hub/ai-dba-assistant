@@ -18,10 +18,9 @@ if query_params.get("type") == "recovery":
     access_token = query_params.get("access_token")
     refresh_token = query_params.get("refresh_token")
 
-    # ✅ Handle both string and list cases
+    # ✅ Fix for Streamlit param types
     if isinstance(access_token, list):
         access_token = access_token[0]
-
     if isinstance(refresh_token, list):
         refresh_token = refresh_token[0]
 
@@ -39,7 +38,6 @@ if query_params.get("type") == "recovery":
         st.error(f"Session setup failed: {e}")
         st.stop()
 
-    # UI
     new_password = st.text_input("New Password", type="password")
 
     if st.button("Update Password"):
