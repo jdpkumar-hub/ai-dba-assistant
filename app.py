@@ -276,8 +276,8 @@ if page == "Trends":
     st.line_chart(df.set_index("created_at")["count"])
     
 #==================================
- if page == "Admin":
-    if user.email in ADMIN_EMAILS:
+if page == "Admin":
+if user.email in ADMIN_EMAILS:
         render_admin(user)
     else:
         st.error("Unauthorized access")
