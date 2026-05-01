@@ -226,7 +226,7 @@ if page == "AI Chat":
             st.session_state.awr_pdf = generate_pdf(result, "AWR Report")
 
             # ✅ Download
-             st.download_button(
+            st.download_button(
                 "📄 Download AWR PDF",
                 data=st.session_state.awr_pdf.getvalue(),
                 file_name="awr_report.pdf",
