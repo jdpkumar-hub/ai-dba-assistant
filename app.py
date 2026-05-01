@@ -79,15 +79,25 @@ if query_params.get("type") == "recovery":
 
     st.stop()
 # ================= LOGIN =================
+# ================= SESSION =================
 if "user" not in st.session_state:
     st.session_state.user = None
 
-user = get_user()
+# ================= GET USER =================
+try:
+    current_user = get_user()
+except Exception:
+    current_user = None
 
-if user:
-    st.session_state.user = user
+# ✅ Update session only if valid user
+if current_user is not None:
+    st.session_state.user = current_user
 
-user = st.session_state.user
+# ✅ ALWAYS assign user safely
+user = st.session_state.get("user", None)
+
+# ================= LOGIN CHECK =================
+if user is None:
 
 if not user:
     col1, col2 = st.columns([0.8, 2.0])
