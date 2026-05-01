@@ -13,18 +13,7 @@ REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 def login():
     st.subheader("Login")
 
-    # ✅ Google OAuth (ONLY ONE METHOD)
-    res = supabase.auth.sign_in_with_oauth({
-        "provider": "google",
-        "options": {"redirect_to": REDIRECT_URL}
-    })
-
-    if res.url:
-        st.link_button("🔵 Continue with Google", res.url)
-
-    st.divider()
-
-    # Email login
+      # Email login
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
@@ -39,7 +28,17 @@ def login():
                 st.session_state.user = res.user
                 st.success("Login successful")
                 st.rerun()
+                
+  # ✅ Google OAuth (ONLY ONE METHOD)
+    res = supabase.auth.sign_in_with_oauth({
+        "provider": "google",
+        "options": {"redirect_to": REDIRECT_URL}
+    })
 
+    if res.url:
+        st.link_button("🔵 Continue with Google", res.url)
+
+    st.divider()
         except Exception:
             st.error("Invalid credentials")
 
