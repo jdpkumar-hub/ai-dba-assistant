@@ -223,12 +223,12 @@ if page == "AI Chat":
 
             # ✅ Save in session (fix crash)
             st.session_state.awr_result = result
-            st.session_state.awr_pdf = generate_pdf(result, "AWR Report")
+            st.session_state.awr_pdf_data = generate_pdf(result, "AWR Report")
 
             # ✅ Download
             st.download_button(
                 "📄 Download AWR PDF",
-                data=st.session_state.awr_pdf.getvalue(),
+                data=st.session_state.awr_pdf_data.getvalue(),
                 file_name="awr_report.pdf",
                 mime="application/pdf",
                 key="awr_pdf"
