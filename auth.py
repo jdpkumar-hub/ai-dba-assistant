@@ -3,7 +3,7 @@ from supabase import create_client
 
 # ================= CONFIG =================
 SUPABASE_URL = "https://wequqsbvhydvugifevhm.supabase.co"
-SUPABASE_KEY = "sb_publishable_ZOfGu0PLriJqtJLdmk6Bkg_mJ3HrURB"
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -22,12 +22,11 @@ def login():
         if st.button("Send OTP"):
             try:
                 supabase.auth.sign_in_with_otp({"email": email})
-                st.session_state.otp_sent = True
-                st.success("📩 OTP sent to your email")
-            except Exception as e:
+                st.success("📩 OTP sent to email")
+            except:
                 st.error("Failed to send OTP")
 
-    # ===== PASSWORD LOGIN (optional fallback) =====
+    # ===== PASSWORD LOGIN =====
     with col2:
         password = st.text_input("Password", type="password", key="login_pass")
 
@@ -43,7 +42,7 @@ def login():
                     st.success("Login successful")
                     st.rerun()
 
-            except Exception:
+            except:
                 st.error("Invalid credentials")
 
     st.divider()
@@ -55,13 +54,19 @@ def login():
                 "provider": "google",
                 "options": {"redirect_to": REDIRECT_URL}
             })
-            st.link_button("👉 Click to login with Google", res.url)
-        except Exception:
+
+            # auto redirect
+            st.markdown(
+                f'<meta http-equiv="refresh" content="0; url={res.url}">',
+                unsafe_allow_html=True
+            )
+
+        except:
             st.error("Google login failed")
 
 # ================= SIGNUP =================
 def signup():
-    st.markdown("## 🆕 Create Account")
+    st.markdown("## 🆕 Signup")
 
     email = st.text_input("Email", key="signup_email")
 
@@ -69,15 +74,13 @@ def signup():
         try:
             supabase.auth.sign_in_with_otp({
                 "email": email,
-                "options": {
-                    "email_redirect_to": REDIRECT_URL
-                }
+                "options": {"email_redirect_to": REDIRECT_URL}
             })
             st.success("📩 Verification email sent")
-        except Exception:
-            st.error("Failed to send OTP")
+        except:
+            st.error("Signup failed")
 
-# ================= RESET PASSWORD =================
+# ================= RESET =================
 def reset_password():
     st.markdown("## 🔑 Reset Password")
 
@@ -87,20 +90,20 @@ def reset_password():
         try:
             supabase.auth.reset_password_for_email(
                 email,
-                {"redirect_to": REDIRECT_URL}
+                {"redirect_to": REDIRECT_URL + "/?type=recovery"}
             )
-            st.success("📩 Password reset email sent")
-        except Exception:
-            st.error("Failed to send email")
+            st.success("📩 Reset email sent")
+        except:
+            st.error("Failed to send reset email")
 
-# ================= GET USER =================
+# ================= USER =================
 def get_user():
     try:
         session = supabase.auth.get_session()
         if session and session.user:
             return session.user
         return None
-    except Exception:
+    except:
         return None
 
 # ================= LOGOUT =================
@@ -108,7 +111,7 @@ def logout():
     if st.button("🚪 Logout"):
         try:
             supabase.auth.sign_out()
-        except Exception:
+        except:
             pass
 
         st.session_state.clear()
