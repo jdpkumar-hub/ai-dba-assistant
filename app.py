@@ -234,18 +234,18 @@ if page == "AI Chat":
                 key="awr_pdf"
             )
 
-            # ================= DISPLAY =================
-            if "awr_result" in st.session_state:
-
-                st.write(st.session_state.awr_result)
-
-                st.download_button(
-                    "📄 Download AWR PDF",
-                    data=st.session_state.awr_pdf.getvalue(),
-                    file_name="awr_report.pdf",
-                    mime="application/pdf",
-                    key="awr2_pdf"
-                )
+#        # ================= DISPLAY =================
+#        if "awr_result" in st.session_state:
+#
+#            st.write(st.session_state.awr_result)
+#
+#            st.download_button(
+#                "📄 Download AWR PDF",
+#                data=st.session_state.awr_pdf.getvalue(),
+#                file_name="awr_report.pdf",
+#                mime="application/pdf",
+#                key="awr2_pdf"
+#            )
                 
 
 # ================= DASHBOARD =================
