@@ -3,26 +3,23 @@ from auth import login, signup, reset_password, logout, get_user, supabase
 from openai import OpenAI
 from bs4 import BeautifulSoup
 import io
+import pandas as pd
+import json
 
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
+
 from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
 
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
 apply_ui_styles()
 render_centered_title()
- 
-# ================= CSS =================
-def load_css():
-    try:
-        with open("styles.css") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    except:
-        pass
 
-load_css()
+# ================= SESSION =================
+if "user" not in st.session_state:
+    st.session_state.user = None
 
 # ================= OAUTH HANDLER =================
 params = st.query_params
@@ -31,15 +28,11 @@ if "code" in params:
         supabase.auth.exchange_code_for_session({
             "auth_code": params["code"]
         })
-        st.query_params.clear()
         st.session_state.user = supabase.auth.get_session().user
+        st.query_params.clear()
         st.rerun()
     except Exception as e:
         st.error(f"OAuth Error: {e}")
-
-# ================= SESSION =================
-if "user" not in st.session_state:
-    st.session_state.user = None
 
 user = get_user()
 if user:
@@ -47,7 +40,7 @@ if user:
 
 user = st.session_state.user
 
-# ================= LOGIN UI =================
+# ================= LOGIN =================
 if not user:
     col1, col2 = st.columns([0.8, 2.0])
 
@@ -67,24 +60,13 @@ if not user:
 # ================= OPENAI =================
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-SYSTEM_PROMPT = """
-You are a Senior Oracle DBA.
-Provide:
-- Root Cause
-- Fix
-- Risks
-- Best Practices
-"""
-
 # ================= PDF =================
 def generate_pdf(text, title):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     styles = getSampleStyleSheet()
 
-    content = []
-    content.append(Paragraph(title, styles["Title"]))
-    content.append(Spacer(1, 10))
+    content = [Paragraph(title, styles["Title"]), Spacer(1, 10)]
 
     for line in text.split("\n"):
         if line.strip():
@@ -101,18 +83,17 @@ def parse_awr_html(content):
 
 # ================= SIDEBAR =================
 with st.sidebar:
-    sidebar_logo()   # ✅ CORRECT PLACE
-    page = st.radio("", ["AI Chat", "Dashboard"])
+    sidebar_logo()
+    page = st.radio("", ["AI Chat", "Dashboard", "History", "Trends"])
     st.success(user.email)
     logout()
 
-# ================= MAIN =================
+# ================= AI CHAT =================
 if page == "AI Chat":
 
-   # tab1, tab2, tab3 = st.tabs(["Chat", "SQL", "AWR"])
     tab1, tab2, tab3 = st.tabs(["💬 Chat", "⚡ SQL Analyzer", "📊 AWR Analyzer"])
 
-    # -------- CHAT --------
+    # CHAT
     with tab1:
         prompt = st.chat_input("Ask...")
         if prompt:
@@ -122,7 +103,7 @@ if page == "AI Chat":
             )
             st.write(res.choices[0].message.content)
 
-    # -------- SQL --------
+    # SQL
     with tab2:
         sql = st.text_area("Enter SQL")
 
@@ -136,47 +117,87 @@ if page == "AI Chat":
             st.write(result)
 
             pdf = generate_pdf(result, "SQL Report")
+            st.download_button("📄 Download PDF", pdf, "sql_report.pdf")
 
-            st.download_button(
-                "📄 Download PDF",
-                pdf,
-                file_name="sql_report.pdf",
-                mime="application/pdf"
-            )
-
-    # -------- AWR --------
+    # AWR
     with tab3:
         st.subheader("📊 AWR Analyzer")
 
         file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
 
-        if file:
-            if st.button("Analyze AWR"):
-                content = file.read().decode(errors="ignore")
+        if file and st.button("Analyze AWR"):
+            content = file.read().decode(errors="ignore")
 
-                if file.name.endswith(".html"):
-                    content = parse_awr_html(content)
+            if file.name.endswith(".html"):
+                content = parse_awr_html(content)
 
-                res = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": f"Analyze this AWR:\n{content}"}
-                    ]
-                )
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": content}]
+            )
 
-                result = res.choices[0].message.content
-                st.write(result)
+            result = res.choices[0].message.content
+            st.write(result)
 
-                pdf = generate_pdf(result, "AWR Report")
+            # SAVE TO DB
+            try:
+                supabase.table("awr_reports").insert({
+                    "user_email": user.email,
+                    "result": result
+                }).execute()
+            except:
+                pass
 
-                st.download_button(
-                    "📄 Download AWR PDF",
-                    pdf,
-                    file_name="awr_report.pdf",
-                    mime="application/pdf"
-                )
+            pdf = generate_pdf(result, "AWR Report")
+            st.download_button("📄 Download AWR PDF", pdf, "awr_report.pdf")
 
-# ================= FOOTER =================
-st.markdown("---")
-st.caption("🚀 AI DBA Assistant")
+# ================= DASHBOARD =================
+if page == "Dashboard":
+    st.title("📊 Dashboard")
+
+    data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .execute()
+
+    if data.data:
+        st.metric("Total Reports", len(data.data))
+    else:
+        st.info("No data yet")
+
+# ================= HISTORY =================
+if page == "History":
+    st.title("🕘 AWR History")
+
+    data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .order("created_at", desc=True)\
+        .execute()
+
+    if data.data:
+        for row in data.data:
+            with st.expander(row["created_at"]):
+                st.write(row["result"])
+    else:
+        st.info("No reports found")
+
+# ================= TRENDS =================
+if page == "Trends":
+    st.title("📈 Trends")
+
+    data = supabase.table("awr_reports")\
+        .select("*")\
+        .eq("user_email", user.email)\
+        .execute()
+
+    if not data.data:
+        st.warning("No data")
+        st.stop()
+
+    df = pd.DataFrame(data.data)
+    df["created_at"] = pd.to_datetime(df["created_at"])
+
+    df["count"] = range(len(df))
+
+    st.line_chart(df.set_index("created_at")["count"])
