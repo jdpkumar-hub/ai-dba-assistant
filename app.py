@@ -54,7 +54,28 @@ if user:
     st.session_state.user = user
 
 user = st.session_state.user
+#========================================
+# ================= PASSWORD RECOVERY =================
+query_params = st.query_params
 
+if query_params.get("type") == "recovery":
+    st.title("🔑 Reset Your Password")
+
+    new_password = st.text_input("New Password", type="password")
+
+    if st.button("Update Password"):
+        try:
+            supabase.auth.update_user({
+                "password": new_password
+            })
+
+            st.success("✅ Password updated successfully!")
+            st.info("Please login with your new password.")
+        except Exception as e:
+            st.error("❌ Failed to update password")
+            st.write(e)
+
+    st.stop()
 # ================= LOGIN =================
 if not user:
     col1, col2 = st.columns([0.8, 2.0])
