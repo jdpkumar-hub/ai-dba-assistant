@@ -64,7 +64,7 @@ def login():
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
-    if st.button("Login"):
+    if st.button("Login", key="login_btn"):
         try:
             res = supabase.auth.sign_in_with_password({
                 "email": email,
@@ -124,7 +124,6 @@ def reset_with_otp():
                 "email": email
             })
             st.success("📩 OTP sent to your email")
-            st.session_state.reset_email = email
         except Exception as e:
             st.error("Failed to send OTP")
             st.write(e)
