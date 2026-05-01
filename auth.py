@@ -3,25 +3,28 @@ from supabase import create_client
 
 # ================= CONFIG =================
 SUPABASE_URL = "https://wequqsbvhydvugifevhm.supabase.co"
-SUPABASE_KEY = "sb_publishable_ZOfGu0PLriJqtJLdmk6Bkg_mJ3HrURB"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlcXVxc2J2aHlkdnVnaWZldmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzAzOTUsImV4cCI6MjA5MDg0NjM5NX0.AMTQgSM56qdYy3VOmq9frtBzg_a6TC7c03rp4YgH8cw"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
+st.write("Secrets loaded:", "SUPABASE_KEY" in st.secrets)
 REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 
 # ================= LOGIN =================
 def login():
     st.subheader("Login")
 
-    # ✅ Google Login Button (IMPORTANT)
-    if st.button("🔐 Login with Google"):
-        res = supabase.auth.sign_in_with_oauth({
-            "provider": "google",
-        })
-        st.write("Redirecting to Google...")
+    # ✅ Google OAuth (ONLY ONE METHOD)
+    res = supabase.auth.sign_in_with_oauth({
+        "provider": "google",
+        "options": {"redirect_to": REDIRECT_URL}
+    })
 
-    # (keep your existing email/password login below if you have)
+    if res.url:
+        st.link_button("🔵 Continue with Google", res.url)
 
+    st.divider()
+
+    # Email login
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
@@ -39,17 +42,6 @@ def login():
 
         except Exception:
             st.error("Invalid credentials")
-
-    st.divider()
-
-    # Google login
-    res = supabase.auth.sign_in_with_oauth({
-        "provider": "google",
-        "options": {"redirect_to": REDIRECT_URL}
-    })
-
-    if res.url:
-        st.link_button("🔵 Continue with Google", res.url)
 
 # ================= SIGNUP =================
 def signup():
