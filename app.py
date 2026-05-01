@@ -98,8 +98,6 @@ user = st.session_state.get("user", None)
 
 # ================= LOGIN CHECK =================
 if user is None:
-
-if not user:
     col1, col2 = st.columns([0.8, 2.0])
 
     with col1:
