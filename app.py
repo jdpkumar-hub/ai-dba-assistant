@@ -178,52 +178,52 @@ if page == "AI Chat":
 
   # ================= AWR =================
 
-   if file and st.button("Analyze AWR"):
+        if file and st.button("Analyze AWR"):
 
-    content = file.read().decode(errors="ignore")
+        content = file.read().decode(errors="ignore")
 
-    if file.name.endswith(".html"):
-        content = parse_awr_html(content)
+        if file.name.endswith(".html"):
+            content = parse_awr_html(content)
 
-    # ✅ STEP 1: Extract
-    metrics = extract_metrics(content)
+        # ✅ STEP 1: Extract
+        metrics = extract_metrics(content)
 
-    # ✅ STEP 2: Classify
-    bottleneck = classify_bottleneck(metrics)
+        # ✅ STEP 2: Classify
+        bottleneck = classify_bottleneck(metrics)
 
-    st.json(metrics)
-    st.info(f"Detected Bottleneck: {bottleneck}")
+        st.json(metrics)
+        st.info(f"Detected Bottleneck: {bottleneck}")
 
-    # ✅ STEP 5: Score
-    score = calculate_health_score(metrics)
-    st.metric("Health Score", score)
+        # ✅ STEP 5: Score
+        score = calculate_health_score(metrics)
+        st.metric("Health Score", score)
 
-    # ✅ STEP 3: Smart prompt
-    prompt = build_awr_prompt(metrics, bottleneck)
+        # ✅ STEP 3: Smart prompt
+        prompt = build_awr_prompt(metrics, bottleneck)
 
-    # ✅ AI call
-    res = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an expert Oracle DBA."},
-            {"role": "user", "content": prompt}
-        ]
-    )
+        # ✅ AI call
+        res = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert Oracle DBA."},
+                {"role": "user", "content": prompt}
+            ]
+        )
 
-    result = res.choices[0].message.content
-    st.write(result)
+        result = res.choices[0].message.content
+        st.write(result)
 
-        # ================= DISPLAY =================
-        if st.session_state.awr_result:
+            # ================= DISPLAY =================
+            if st.session_state.awr_result:
 
-            st.write(st.session_state.awr_result)
+                st.write(st.session_state.awr_result)
 
-            st.download_button(
-                "📄 Download AWR PDF",
-                data=st.session_state.awr_pdf.getvalue(),
-                file_name="awr_report.pdf",
-                mime="application/pdf"
-            )
+                st.download_button(
+                    "📄 Download AWR PDF",
+                    data=st.session_state.awr_pdf.getvalue(),
+                    file_name="awr_report.pdf",
+                    mime="application/pdf"
+                )
 # ================= DASHBOARD =================
 if page == "Dashboard":
     st.title("📊 Dashboard")
