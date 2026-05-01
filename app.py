@@ -22,7 +22,6 @@ from awr_parser import (
     calculate_health_score
 )
 from otp_auth import signup_with_otp, reset_with_otp
-from awr_parser import extract_metrics, classify_bottleneck, build_awr_prompt, calculate_health_score
 
 # ================= ADMIN =================
 ADMIN_EMAILS = ["jdpkumar@gmail.com", "aidbaassistant@gmail.com"]
@@ -177,8 +176,16 @@ if page == "AI Chat":
             )
 
   # ================= AWR =================
+    # ================= AWR =================
+    with tab3:
+        st.subheader("📊 Upload AWR Report")
 
-        if file and st.button("Analyze AWR"):
+        file = st.file_uploader("Upload AWR (.html or .txt)", type=["html", "txt"])
+
+        if file is not None:
+            st.success(f"Uploaded: {file.name}")
+
+        if file is not None and st.button("Analyze AWR"):
             content = file.read().decode(errors="ignore")
 
             if file.name.endswith(".html"):
@@ -211,6 +218,18 @@ if page == "AI Chat":
 
             result = res.choices[0].message.content
             st.write(result)
+
+            # ✅ Save in session (fix crash)
+            st.session_state.awr_result = result
+            st.session_state.awr_pdf = generate_pdf(result, "AWR Report")
+
+            # ✅ Download
+            st.download_button(
+                "📄 Download AWR PDF",
+                data=st.session_state.awr_pdf.getvalue(),
+                file_name="awr_report.pdf",
+                mime="application/pdf"
+            )
 
             # ================= DISPLAY =================
             if st.session_state.awr_result:
