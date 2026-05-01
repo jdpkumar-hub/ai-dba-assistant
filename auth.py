@@ -81,7 +81,7 @@ def reset_password():
     if st.button("Send Reset Link"):
         supabase.auth.reset_password_for_email(
             email,
-            {"redirect_to": REDIRECT_URL + "/?type=recovery"}
+            {"redirect_to": REDIRECT_URL }
         )
         st.success("Reset email sent")
 
