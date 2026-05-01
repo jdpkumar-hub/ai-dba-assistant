@@ -22,7 +22,7 @@ from awr_parser import (
     calculate_health_score
 )
 from otp_auth import signup_with_otp, reset_with_otp
-from awr_parser import extract_metrics, classify_bottleneck, build_awr_prompt, calculate_health_score
+
 
 # ================= ADMIN =================
 ADMIN_EMAILS = ["jdpkumar@gmail.com", "aidbaassistant@gmail.com"]
