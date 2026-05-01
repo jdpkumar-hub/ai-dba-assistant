@@ -244,7 +244,7 @@ if page == "AI Chat":
                     data=st.session_state.awr_pdf.getvalue(),
                     file_name="awr_report.pdf",
                     mime="application/pdf",
-                    key="awr_pdf"
+                    key="awr2_pdf"
                 )
                 
 
