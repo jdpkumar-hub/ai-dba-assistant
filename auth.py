@@ -9,6 +9,56 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 
+# ================= PASSWORD RECOVERY =================
+query_params = st.query_params
+
+if query_params.get("type") == "recovery":
+    st.title("🔑 Reset Your Password")
+
+    access_token = query_params.get("access_token")
+    refresh_token = query_params.get("refresh_token")
+
+    # ✅ Handle both string and list cases
+    if isinstance(access_token, list):
+        access_token = access_token[0]
+
+    if isinstance(refresh_token, list):
+        refresh_token = refresh_token[0]
+
+    if not access_token or not refresh_token:
+        st.error("❌ Invalid or expired reset link")
+        st.stop()
+
+    # ✅ Create session
+    try:
+        supabase.auth.set_session({
+            "access_token": access_token,
+            "refresh_token": refresh_token
+        })
+    except Exception as e:
+        st.error(f"Session setup failed: {e}")
+        st.stop()
+
+    # UI
+    new_password = st.text_input("New Password", type="password")
+
+    if st.button("Update Password"):
+        try:
+            supabase.auth.update_user({
+                "password": new_password
+            })
+
+            st.success("✅ Password updated successfully!")
+            st.info("Please login with your new password.")
+
+            st.query_params.clear()
+
+        except Exception as e:
+            st.error("❌ Failed to update password")
+            st.write(e)
+
+    st.stop()
+#================================================
 def login():
     st.subheader("Login")
 
@@ -64,42 +114,20 @@ def signup():
             st.error("Signup failed")
 
 # ================= RESET =================
-query_params = st.query_params
+def reset_password():
+    st.markdown("## 🔑 Reset Password")
 
-if query_params.get("type") == "recovery":
-    st.title("🔑 Reset Your Password")
+    email = st.text_input("Email", key="reset_email")
 
-    # ✅ STEP 1: Extract tokens
-    access_token = query_params.get("access_token")
-    refresh_token = query_params.get("refresh_token")
-
-    # ✅ STEP 2: Create session manually
-    if access_token and refresh_token:
+    if st.button("Send Reset Link"):
         try:
-            supabase.auth.set_session({
-                "access_token": access_token,
-                "refresh_token": refresh_token
-            })
-        except Exception as e:
-            st.error(f"Session setup failed: {e}")
-
-    # UI
-    new_password = st.text_input("New Password", type="password")
-
-    if st.button("Update Password"):
-        try:
-            supabase.auth.update_user({
-                "password": new_password
-            })
-
-            st.success("✅ Password updated successfully!")
-            st.info("Please login with your new password.")
-
-        except Exception as e:
-            st.error("❌ Failed to update password")
-            st.write(e)
-
-    st.stop()
+            supabase.auth.reset_password_for_email(
+                email,
+                {"redirect_to": "https://ai-dba-assistant.streamlit.app"}
+            )
+            st.success("Reset link sent")
+        except Exception:
+            st.error("Failed to send email")
 
 # ================= GET USER =================
 def get_user():
