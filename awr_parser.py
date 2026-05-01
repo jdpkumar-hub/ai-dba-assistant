@@ -1,166 +1,72 @@
-# awr_parser.py
-
 import re
-from bs4 import BeautifulSoup
 
-
-# ===============================
-# HTML CLEANER
-# ===============================
-def parse_html(content):
-    soup = BeautifulSoup(content, "lxml")
-    return soup.get_text()
-
-
-# ===============================
-# METRIC EXTRACTION
-# ===============================
+# ================= METRICS EXTRACTION =================
 def extract_metrics(text):
+    metrics = {}
 
-    metrics = {
-        "db_time": None,
-        "db_cpu": None,
-        "cpu_pct": None,
-        "top_waits": [],
-        "top_sql": []
-    }
+    cpu = re.search(r"DB CPU\s+(\d+\.\d+|\d+)", text)
+    if cpu:
+        metrics["cpu_pct"] = float(cpu.group(1))
 
-    # -------- DB Time / CPU --------
-    for line in text.split("\n"):
-        if "DB Time" in line:
-            nums = re.findall(r"\d+\.\d+|\d+", line)
-            if nums:
-                metrics["db_time"] = float(nums[0])
+    db_time = re.search(r"DB Time\s+(\d+\.\d+|\d+)", text)
+    if db_time:
+        metrics["db_time"] = float(db_time.group(1))
 
-        if "DB CPU" in line:
-            nums = re.findall(r"\d+\.\d+|\d+", line)
-            if nums:
-                metrics["db_cpu"] = float(nums[0])
+    hit = re.search(r"Buffer Cache Hit Ratio\s+(\d+\.\d+|\d+)", text)
+    if hit:
+        metrics["cache_hit"] = float(hit.group(1))
 
-    # -------- CPU % --------
-    if metrics["db_time"] and metrics["db_cpu"]:
-        metrics["cpu_pct"] = round(
-            (metrics["db_cpu"] / metrics["db_time"]) * 100, 2
-        )
-
-    # -------- WAIT EVENTS --------
-    capture = False
-    for line in text.split("\n"):
-
-        if "Top 10 Foreground Events" in line:
-            capture = True
-            continue
-
-        if capture:
-            if line.strip() == "":
-                break
-
-            parts = line.split()
-            if len(parts) > 3:
-                metrics["top_waits"].append(line)
-
-    # -------- TOP SQL --------
-    capture = False
-    for line in text.split("\n"):
-
-        if "SQL ordered by Elapsed Time" in line:
-            capture = True
-            continue
-
-        if capture:
-            if line.strip() == "":
-                break
-
-            if len(line) > 30:
-                metrics["top_sql"].append(line)
+    waits = re.findall(r"(\w+\s+\w+)\s+(\d+\.\d+)%", text)
+    metrics["top_waits"] = waits[:5]
 
     return metrics
 
 
-# ===============================
-# BOTTLENECK DETECTION
-# ===============================
+# ================= STEP 2 =================
 def classify_bottleneck(metrics):
-
-    if metrics["cpu_pct"] is None:
-        return "UNKNOWN"
-
-    if metrics["cpu_pct"] > 70:
-        return "CPU_BOUND"
-
-    # Check waits
-    wait_text = " ".join(metrics["top_waits"]).lower()
-
-    if "db file sequential read" in wait_text:
-        return "IO_BOUND (Index Reads)"
-
-    if "db file scattered read" in wait_text:
-        return "IO_BOUND (Full Scan)"
-
-    if "log file sync" in wait_text:
-        return "COMMIT_BOTTLENECK"
-
-    if "latch" in wait_text or "mutex" in wait_text:
-        return "CONCURRENCY"
-
-    return "MIXED"
-
-
-# ===============================
-# BUILD AI INPUT (SMART)
-# ===============================
-def build_awr_prompt(metrics):
-
-    return f"""
-Oracle AWR Analysis
-
-DB Time: {metrics['db_time']}
-DB CPU: {metrics['db_cpu']}
-CPU Usage %: {metrics['cpu_pct']}
-
-Top Wait Events:
-{chr(10).join(metrics['top_waits'][:5])}
-
-Top SQL:
-{chr(10).join(metrics['top_sql'][:5])}
-
-Tasks:
-
-1. Identify primary bottleneck
-2. Explain root cause using metrics
-3. Provide DBA-level fixes
-4. Highlight risks
-5. Suggest tuning actions
-"""
-
-def calculate_health_score(metrics, bottleneck):
-
-    score = 100
-
-    cpu = metrics.get("cpu_pct") or 0
+    cpu = metrics.get("cpu_pct", 0)
+    cache = metrics.get("cache_hit", 100)
 
     if cpu > 80:
-        score -= 40
-    elif cpu > 60:
-        score -= 25
+        return "CPU Bottleneck"
+    elif cache < 90:
+        return "Memory Bottleneck"
+    elif "db file sequential read" in str(metrics.get("top_waits", [])):
+        return "I/O Bottleneck"
+    else:
+        return "Balanced / Unknown"
 
-    if "IO_BOUND" in bottleneck:
+
+# ================= STEP 3 =================
+def build_awr_prompt(metrics, bottleneck):
+    return f"""
+You are a senior Oracle DBA.
+
+Analyze the following structured AWR metrics:
+
+Metrics:
+{metrics}
+
+Detected Bottleneck:
+{bottleneck}
+
+Tasks:
+1. Explain root cause clearly
+2. Identify exact problem area
+3. Provide specific tuning actions
+4. Avoid generic advice
+
+Be precise.
+"""
+
+
+# ================= STEP 5 =================
+def calculate_health_score(metrics):
+    score = 100
+
+    if metrics.get("cpu_pct", 0) > 80:
+        score -= 20
+    if metrics.get("cache_hit", 100) < 90:
         score -= 20
 
-    if "CONCURRENCY" in bottleneck:
-        score -= 15
-
-    if "COMMIT" in bottleneck:
-        score -= 10
-
-    # clamp
-    score = max(0, score)
-
-    if score > 80:
-        level = "Healthy"
-    elif score > 60:
-        level = "Warning"
-    else:
-        level = "Critical"
-
-    return score, level
+    return score
