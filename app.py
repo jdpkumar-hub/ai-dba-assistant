@@ -22,7 +22,29 @@ from awr_parser import (
     calculate_health_score
 )
 from otp_auth import signup_with_otp, reset_with_otp
+import streamlit as st
 
+# ================= HANDLE HASH TOKENS =================
+if "access_token" not in st.session_state:
+    st.markdown("""
+        <script>
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const params = new URLSearchParams(hash);
+            const access_token = params.get("access_token");
+            const refresh_token = params.get("refresh_token");
+
+            if (access_token && refresh_token) {
+                const url = new URL(window.location);
+                url.searchParams.set("access_token", access_token);
+                url.searchParams.set("refresh_token", refresh_token);
+                url.searchParams.set("type", "recovery");
+
+                window.location.href = url.toString();
+            }
+        }
+        </script>
+    """, unsafe_allow_html=True)
 
 # ================= ADMIN =================
 ADMIN_EMAILS = ["jdpkumar@gmail.com", "aidbaassistant@gmail.com"]
