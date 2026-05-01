@@ -14,6 +14,14 @@ from ui_styles import apply_ui_styles, render_centered_title, sidebar_logo
 from admin_panel import render_admin
 from usage_tracker import track_usage
 
+from awr_parser import (
+    parse_html,
+    extract_metrics,
+    classify_bottleneck,
+    build_awr_prompt,
+    calculate_health_score
+)
+
 # ================= CONFIG =================
 st.set_page_config(page_title="AI DBA Assistant", layout="wide")
 apply_ui_styles()
@@ -127,65 +135,83 @@ if page == "AI Chat":
             )
 
   # ================= AWR =================
-    with tab3:
-        st.subheader("📊 AWR Analyzer")
+   # ================= AWR =================
+with tab3:
+    st.subheader("📊 AWR Analyzer")
 
-        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+    file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
 
-        # ✅ INIT (OUTSIDE button)
-        if "awr_result" not in st.session_state:
-            st.session_state.awr_result = None
+    if "awr_result" not in st.session_state:
+        st.session_state.awr_result = None
 
-        if "awr_pdf" not in st.session_state:
-            st.session_state.awr_pdf = None
+    if "awr_pdf" not in st.session_state:
+        st.session_state.awr_pdf = None
 
-        # ================= ANALYZE =================
-        if file and st.button("Analyze AWR"):
+    if file and st.button("Analyze AWR"):
 
-            content = file.read().decode(errors="ignore")
+        content = file.read().decode(errors="ignore")
 
-            if file.name.endswith(".html"):
-                content = parse_awr_html(content)
+        # ✅ USE YOUR PARSER
+        if file.name.endswith(".html"):
+            content = parse_html(content)
 
-            # ✅ SINGLE API CALL
-            res = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": content}]
-            )
+        # ✅ EXTRACT METRICS
+        metrics = extract_metrics(content)
 
-            result = res.choices[0].message.content
+        # ✅ BOTTLENECK DETECTION
+        bottleneck = classify_bottleneck(metrics)
 
-            # ✅ STORE RESULT (CRITICAL)
-            st.session_state.awr_result = result
+        st.info(f"Detected Bottleneck: {bottleneck}")
 
-            # ✅ GENERATE PDF ONCE
-            pdf = generate_pdf(result, "AWR Report")
-            st.session_state.awr_pdf = pdf
+        # ✅ HEALTH SCORE
+        score, level = calculate_health_score(metrics, bottleneck)
+        st.metric("Health Score", f"{score} ({level})")
 
-            # ✅ TRACK USAGE
-            track_usage(user.email, "AWR_ANALYSIS")
+        # ✅ BUILD AI PROMPT (SMART)
+        prompt = build_awr_prompt(metrics)
 
-            # ✅ SAVE TO DB
-            try:
-                supabase.table("awr_reports").insert({
-                    "user_email": user.email,
-                    "result": result
-                }).execute()
-            except Exception as e:
-                st.warning("DB save failed")
+        # ✅ SINGLE AI CALL
+        res = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-        # ================= DISPLAY =================
-        if st.session_state.awr_result:
+        result = res.choices[0].message.content
 
-            st.write(st.session_state.awr_result)
+        # ✅ STORE RESULT
+        st.session_state.awr_result = result
 
-            # ✅ PDF BUTTON ALWAYS VISIBLE
-            st.download_button(
-                "📄 Download AWR PDF",
-                data=st.session_state.awr_pdf.getvalue(),
-                file_name="awr_report.pdf",
-                mime="application/pdf"
-            )
+        # ✅ GENERATE PDF
+        pdf = generate_pdf(result, "AWR Report")
+        st.session_state.awr_pdf = pdf
+
+        # ✅ TRACK USAGE
+        track_usage(user.email, "AWR_ANALYSIS")
+
+        # ✅ SAVE TO DB (WITH METRICS)
+        try:
+            supabase.table("awr_reports").insert({
+                "user_email": user.email,
+                "metrics": json.loads(json.dumps(metrics)),
+                "bottleneck": bottleneck,
+                "score": score,
+                "level": level,
+                "result": result
+            }).execute()
+        except Exception:
+            st.warning("DB save failed")
+
+    # ================= DISPLAY =================
+    if st.session_state.awr_result:
+
+        st.write(st.session_state.awr_result)
+
+        st.download_button(
+            "📄 Download AWR PDF",
+            data=st.session_state.awr_pdf.getvalue(),
+            file_name="awr_report.pdf",
+            mime="application/pdf"
+        )
 # ================= DASHBOARD =================
 if page == "Dashboard":
     st.title("📊 Dashboard")
