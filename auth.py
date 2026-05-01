@@ -13,58 +13,71 @@ REDIRECT_URL = "https://ai-dba-assistant.streamlit.app"
 def login():
     st.markdown("## 🔐 Login")
 
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
+    email = st.text_input("Email", key="login_email")
 
-    if st.button("Login"):
-        try:
-            res = supabase.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
+    col1, col2 = st.columns(2)
 
-            if res.user:
-                st.session_state.user = res.user
-                st.success("Login successful")
-                st.rerun()
+    # ===== OTP LOGIN =====
+    with col1:
+        if st.button("Send OTP"):
+            try:
+                supabase.auth.sign_in_with_otp({"email": email})
+                st.session_state.otp_sent = True
+                st.success("📩 OTP sent to your email")
+            except Exception as e:
+                st.error("Failed to send OTP")
 
-        except Exception:
-            st.error("Invalid credentials")
+    # ===== PASSWORD LOGIN (optional fallback) =====
+    with col2:
+        password = st.text_input("Password", type="password", key="login_pass")
+
+        if st.button("Login with Password"):
+            try:
+                res = supabase.auth.sign_in_with_password({
+                    "email": email,
+                    "password": password
+                })
+
+                if res.user:
+                    st.session_state.user = res.user
+                    st.success("Login successful")
+                    st.rerun()
+
+            except Exception:
+                st.error("Invalid credentials")
 
     st.divider()
 
-    # Google login
-    res = supabase.auth.sign_in_with_oauth({
-        "provider": "google",
-        "options": {"redirect_to": REDIRECT_URL}
-    })
-
-    if res.url:
-        st.link_button("🔵 Continue with Google", res.url)
+    # ===== GOOGLE LOGIN =====
+    if st.button("🔵 Continue with Google"):
+        try:
+            res = supabase.auth.sign_in_with_oauth({
+                "provider": "google",
+                "options": {"redirect_to": REDIRECT_URL}
+            })
+            st.link_button("👉 Click to login with Google", res.url)
+        except Exception:
+            st.error("Google login failed")
 
 # ================= SIGNUP =================
 def signup():
     st.markdown("## 🆕 Create Account")
 
     email = st.text_input("Email", key="signup_email")
-    password = st.text_input("Password", type="password", key="signup_pass")
-    confirm = st.text_input("Confirm Password", type="password", key="signup_confirm")
 
-    if st.button("Create Account"):
-        if password != confirm:
-            st.error("Passwords do not match")
-            return
-
+    if st.button("Send Signup OTP"):
         try:
-            supabase.auth.sign_up({
+            supabase.auth.sign_in_with_otp({
                 "email": email,
-                "password": password
+                "options": {
+                    "email_redirect_to": REDIRECT_URL
+                }
             })
-            st.success("Check email for verification link")
+            st.success("📩 Verification email sent")
         except Exception:
-            st.error("Signup failed")
+            st.error("Failed to send OTP")
 
-# ================= RESET =================
+# ================= RESET PASSWORD =================
 def reset_password():
     st.markdown("## 🔑 Reset Password")
 
@@ -72,8 +85,11 @@ def reset_password():
 
     if st.button("Send Reset Link"):
         try:
-            supabase.auth.reset_password_for_email(email)
-            st.success("Reset link sent")
+            supabase.auth.reset_password_for_email(
+                email,
+                {"redirect_to": REDIRECT_URL}
+            )
+            st.success("📩 Password reset email sent")
         except Exception:
             st.error("Failed to send email")
 
