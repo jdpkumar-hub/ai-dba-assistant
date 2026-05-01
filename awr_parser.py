@@ -1,72 +1,61 @@
 import re
 
-# ================= METRICS EXTRACTION =================
-def extract_metrics(text):
+# ================= PARSE HTML =================
+def parse_html(content):
+    return content
+
+
+# ================= METRICS =================
+def extract_metrics(content):
     metrics = {}
 
-    cpu = re.search(r"DB CPU\s+(\d+\.\d+|\d+)", text)
-    if cpu:
-        metrics["cpu_pct"] = float(cpu.group(1))
+    try:
+        db_time = re.search(r"DB Time.*?(\d+)", content)
+        cpu_time = re.search(r"DB CPU.*?(\d+)", content)
 
-    db_time = re.search(r"DB Time\s+(\d+\.\d+|\d+)", text)
-    if db_time:
-        metrics["db_time"] = float(db_time.group(1))
+        metrics["db_time"] = int(db_time.group(1)) if db_time else 0
+        metrics["cpu_time"] = int(cpu_time.group(1)) if cpu_time else 0
 
-    hit = re.search(r"Buffer Cache Hit Ratio\s+(\d+\.\d+|\d+)", text)
-    if hit:
-        metrics["cache_hit"] = float(hit.group(1))
-
-    waits = re.findall(r"(\w+\s+\w+)\s+(\d+\.\d+)%", text)
-    metrics["top_waits"] = waits[:5]
+    except Exception:
+        metrics["db_time"] = 0
+        metrics["cpu_time"] = 0
 
     return metrics
 
 
-# ================= STEP 2 =================
+# ================= BOTTLENECK =================
 def classify_bottleneck(metrics):
-    cpu = metrics.get("cpu_pct", 0)
-    cache = metrics.get("cache_hit", 100)
-
-    if cpu > 80:
-        return "CPU Bottleneck"
-    elif cache < 90:
-        return "Memory Bottleneck"
-    elif "db file sequential read" in str(metrics.get("top_waits", [])):
-        return "I/O Bottleneck"
-    else:
-        return "Balanced / Unknown"
+    try:
+        if metrics["cpu_time"] > metrics["db_time"] * 0.7:
+            return "CPU Bottleneck"
+        else:
+            return "IO Bottleneck"
+    except Exception:
+        return "Unknown"
 
 
-# ================= STEP 3 =================
+# ================= PROMPT =================
 def build_awr_prompt(metrics, bottleneck):
     return f"""
-You are a senior Oracle DBA.
-
-Analyze the following structured AWR metrics:
+Analyze Oracle AWR Report.
 
 Metrics:
 {metrics}
 
-Detected Bottleneck:
-{bottleneck}
+Detected Bottleneck: {bottleneck}
 
-Tasks:
-1. Explain root cause clearly
-2. Identify exact problem area
-3. Provide specific tuning actions
-4. Avoid generic advice
-
-Be precise.
+Give tuning recommendations.
 """
 
 
-# ================= STEP 5 =================
+# ================= HEALTH =================
 def calculate_health_score(metrics):
-    score = 100
+    try:
+        score = 100
 
-    if metrics.get("cpu_pct", 0) > 80:
-        score -= 20
-    if metrics.get("cache_hit", 100) < 90:
-        score -= 20
+        if metrics["cpu_time"] > metrics["db_time"] * 0.8:
+            score -= 30
 
-    return score
+        return max(score, 0)
+    except Exception:
+        return 50
