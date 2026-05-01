@@ -22,6 +22,7 @@ from awr_parser import (
     calculate_health_score
 )
 from otp_auth import signup_with_otp, reset_with_otp
+from awr_parser import extract_metrics, classify_bottleneck, build_awr_prompt, calculate_health_score
 
 # ================= ADMIN =================
 ADMIN_EMAILS = ["jdpkumar@gmail.com", "aidbaassistant@gmail.com"]
@@ -177,70 +178,40 @@ if page == "AI Chat":
 
   # ================= AWR =================
 
-    with tab3:
-        st.subheader("📊 AWR Analyzer")
+   if file and st.button("Analyze AWR"):
 
-        file = st.file_uploader("Upload AWR (.txt / .html)", ["txt", "html"])
+    content = file.read().decode(errors="ignore")
 
-        if "awr_result" not in st.session_state:
-            st.session_state.awr_result = None
+    if file.name.endswith(".html"):
+        content = parse_awr_html(content)
 
-        if "awr_pdf" not in st.session_state:
-            st.session_state.awr_pdf = None
+    # ✅ STEP 1: Extract
+    metrics = extract_metrics(content)
 
-        if file and st.button("Analyze AWR"):
+    # ✅ STEP 2: Classify
+    bottleneck = classify_bottleneck(metrics)
 
-            content = file.read().decode(errors="ignore")
+    st.json(metrics)
+    st.info(f"Detected Bottleneck: {bottleneck}")
 
-            # ✅ USE YOUR PARSER
-            if file.name.endswith(".html"):
-                content = parse_html(content)
+    # ✅ STEP 5: Score
+    score = calculate_health_score(metrics)
+    st.metric("Health Score", score)
 
-            # ✅ EXTRACT METRICS
-            metrics = extract_metrics(content)
+    # ✅ STEP 3: Smart prompt
+    prompt = build_awr_prompt(metrics, bottleneck)
 
-            # ✅ BOTTLENECK DETECTION
-            bottleneck = classify_bottleneck(metrics)
+    # ✅ AI call
+    res = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are an expert Oracle DBA."},
+            {"role": "user", "content": prompt}
+        ]
+    )
 
-            st.info(f"Detected Bottleneck: {bottleneck}")
-
-            # ✅ HEALTH SCORE
-            score, level = calculate_health_score(metrics, bottleneck)
-            st.metric("Health Score", f"{score} ({level})")
-
-            # ✅ BUILD AI PROMPT (SMART)
-            prompt = build_awr_prompt(metrics)
-
-            # ✅ SINGLE AI CALL
-            res = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}]
-            )
-
-            result = res.choices[0].message.content
-
-            # ✅ STORE RESULT
-            st.session_state.awr_result = result
-
-            # ✅ GENERATE PDF
-            pdf = generate_awr_pdf(result, metrics, score, level)
-            st.session_state.awr_pdf = pdf
-
-            # ✅ TRACK USAGE
-            track_usage(user.email, "AWR_ANALYSIS")
-
-            # ✅ SAVE TO DB (WITH METRICS)
-            try:
-                supabase.table("awr_reports").insert({
-                    "user_email": user.email,
-                    "metrics": json.loads(json.dumps(metrics)),
-                    "bottleneck": bottleneck,
-                    "score": score,
-                    "level": level,
-                    "result": result
-                }).execute()
-            except Exception:
-                st.warning("DB save failed")
+    result = res.choices[0].message.content
+    st.write(result)
 
         # ================= DISPLAY =================
         if st.session_state.awr_result:
