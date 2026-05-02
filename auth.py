@@ -153,9 +153,15 @@ def reset_with_otp():
                 # ✅ safe cleanup
                 st.session_state.pop("reset_email_store", None)
 
-        except Exception as e:
-            st.error("❌ Invalid OTP or failed reset")
-            st.write(e)
+       except Exception as e:
+            error_msg = str(e)
+
+            if "New password should be different" in error_msg:
+                st.warning("⚠️ New password must be different from old password")
+            else:
+                st.error("❌ Invalid OTP or failed reset")
+
+            st.write(error_msg)
 
 # ================= GET USER =================
 def get_user():
