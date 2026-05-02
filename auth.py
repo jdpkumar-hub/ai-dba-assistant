@@ -115,7 +115,6 @@ def signup():
 def reset_with_otp():
     st.markdown("## 🔑 Reset Password (OTP)")
 
-    # ================= STEP 1 =================
     email = st.text_input("Email", key="reset_email")
 
     if st.button("Send OTP", key="reset_send_otp"):
@@ -124,18 +123,21 @@ def reset_with_otp():
                 "email": email
             })
             st.success("📩 OTP sent to your email")
+
+            # store separately
+            st.session_state["reset_email_store"] = email
+
         except Exception as e:
             st.error("Failed to send OTP")
             st.write(e)
 
-    # ================= STEP 2 =================
     otp = st.text_input("Enter OTP", key="reset_otp")
     new_password = st.text_input("New Password", type="password", key="reset_new_pass")
 
     if st.button("Verify OTP & Reset", key="reset_verify_btn"):
         try:
             res = supabase.auth.verify_otp({
-                "email": st.session_state.get("reset_email"),
+                "email": st.session_state.get("reset_email_store"),
                 "token": otp,
                 "type": "email"
             })
@@ -148,8 +150,8 @@ def reset_with_otp():
                 st.success("✅ Password updated successfully!")
                 st.info("Please login with your new password")
 
-                # optional cleanup
-                st.session_state.reset_email = None
+                # ✅ safe cleanup
+                st.session_state.pop("reset_email_store", None)
 
         except Exception as e:
             st.error("❌ Invalid OTP or failed reset")
