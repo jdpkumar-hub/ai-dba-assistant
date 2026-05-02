@@ -115,6 +115,7 @@ def signup():
 def reset_with_otp():
     st.markdown("## 🔑 Reset Password (OTP)")
 
+    # ================= STEP 1 =================
     email = st.text_input("Email", key="reset_email")
 
     if st.button("Send OTP", key="reset_send_otp"):
@@ -123,45 +124,67 @@ def reset_with_otp():
                 "email": email
             })
             st.success("📩 OTP sent to your email")
-
-            # store separately
             st.session_state["reset_email_store"] = email
-
         except Exception as e:
             st.error("Failed to send OTP")
             st.write(e)
 
+    # ================= STEP 2 =================
     otp = st.text_input("Enter OTP", key="reset_otp")
     new_password = st.text_input("New Password", type="password", key="reset_new_pass")
 
-    if st.button("Verify OTP & Reset", key="reset_verify_btn"):
-        try:
-            res = supabase.auth.verify_otp({
-                "email": st.session_state.get("reset_email_store"),
-                "token": otp,
-                "type": "email"
-            })
+    # track reset completion
+    if "reset_done" not in st.session_state:
+        st.session_state.reset_done = False
 
-            if res.user:
-                supabase.auth.update_user({
-                    "password": new_password
+    if st.session_state.reset_done:
+        st.success("✅ Password updated successfully!")
+        st.info("Redirecting to login...")
+
+        # ⏳ small delay + redirect
+        import time
+        time.sleep(2)
+
+        st.session_state.reset_done = False
+        st.session_state.pop("reset_email_store", None)
+
+        st.rerun()
+
+    # ================= VALIDATION + RESET =================
+    if st.button("Verify OTP & Reset", key="reset_verify_btn"):
+
+        # 🔒 VALIDATIONS
+        if not new_password:
+            st.warning("⚠️ Enter a new password")
+
+        elif len(new_password) < 6:
+            st.warning("⚠️ Password must be at least 6 characters")
+
+        else:
+            try:
+                res = supabase.auth.verify_otp({
+                    "email": st.session_state.get("reset_email_store"),
+                    "token": otp,
+                    "type": "email"
                 })
 
-                st.success("✅ Password updated successfully!")
-                st.info("Please login with your new password")
+                if res.user:
+                    supabase.auth.update_user({
+                        "password": new_password
+                    })
 
-                # ✅ safe cleanup
-                st.session_state.pop("reset_email_store", None)
+                    # ✅ mark success
+                    st.session_state.reset_done = True
 
-       except Exception as e:
-            error_msg = str(e)
+            except Exception as e:
+                error_msg = str(e)
 
-            if "New password should be different" in error_msg:
-                st.warning("⚠️ New password must be different from old password")
-            else:
-                st.error("❌ Invalid OTP or failed reset")
+                if "different from the old password" in error_msg:
+                    st.warning("⚠️ New password must be different from old password")
+                else:
+                    st.error("❌ Invalid OTP or failed reset")
 
-            st.write(error_msg)
+                st.write(error_msg)
 
 # ================= GET USER =================
 def get_user():
